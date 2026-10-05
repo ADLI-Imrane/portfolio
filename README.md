@@ -1,14 +1,16 @@
-# Imrane Adli — Portfolio
+# imrane-os — Imrane Adli's portfolio
 
-Personal portfolio built with [Astro](https://astro.build), bilingual (FR / EN) with dark and light themes.
+A desktop-OS style developer portfolio built with [Astro](https://astro.build): draggable windows, a working terminal, a dock with magnification, light/dark themes, and French/English versions.
 
-- **Animations:** Motion (springs, in-view reveals, scroll-linked text), Lenis smooth scroll, native cross-document View Transitions, CSS scroll-driven animations for the stacked project cards
-- **Zero framework runtime:** plain Astro components + a single TypeScript module
+**Live:** https://imrane-adli.pages.dev
+
+- Windows: drag, resize, minimize to the Dock, zoom (double-click the title bar)
+- Terminal: `help`, `whoami`, `projects`, `open tunneleads`, `skills`, `contact`, `theme`, `lang`, `sudo hire-me`
+- Mobile: home-screen layout with full-screen apps
+- Stack: Astro, TypeScript, Motion; no UI framework
 
 ```bash
 npm install
 npm run dev     # http://localhost:4321
 npm run build   # static output in dist/
 ```
-
-Deployed on Cloudflare Pages — build command `npm run build`, output directory `dist`.
