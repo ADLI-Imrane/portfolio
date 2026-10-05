@@ -540,3 +540,6 @@ body.mission .widgets, body.mission .d-icons { opacity: .25; }
 /* denser glass for overlays so text stays legible over busy content */
 .cc, .sp-box, .notif, .ctx { background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.05)), rgba(28,32,58,0.58); }
 :root[data-theme='light'] .cc, :root[data-theme='light'] .sp-box, :root[data-theme='light'] .notif, :root[data-theme='light'] .ctx { background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(255,255,255,0.45)), rgba(235,240,255,0.5); }
+/* menubar + lock-screen clock sit directly on the (vivid) wallpaper: keep them white in both themes */
+.menubar, :root[data-theme='light'] .menubar { color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.3); }
+:root[data-theme='light'] .wall-sig { color: rgba(255,255,255,0.95); text-shadow: 0 2px 30px rgba(0,0,0,0.25); }
