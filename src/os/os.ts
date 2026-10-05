@@ -282,63 +282,220 @@ function renderSettings(): HTMLElement {
 
 /* ---------------- terminal ---------------- */
 function renderTerminal(): HTMLElement {
+  const fr = lang === 'fr';
   const el = h(`<div class="term" role="log" aria-live="polite"><div class="out"></div>
-    <div class="term-input"><span><span class="ps">imrane</span>@<span class="path">casablanca</span> ~ %</span><input aria-label="Terminal" autocomplete="off" spellcheck="false" /></div></div>`);
+    <div class="term-input"><span class="prompt"></span><input aria-label="Terminal" autocomplete="off" spellcheck="false" autocapitalize="off" /></div></div>`);
   const out = $('.out', el);
   const input = $('input', el) as HTMLInputElement;
+  const promptEl = $('.prompt', el);
   const history: string[] = []; let hi = 0;
+  const started = Date.now();
   const print = (html: string) => { out.insertAdjacentHTML('beforeend', `<div class="term-line">${html}</div>`); el.scrollTop = el.scrollHeight; };
+  const err = (s: string) => print(`<span class="err">${esc(s)}</span>`);
+
+  /* ---- virtual file system (built from the site data) ---- */
+  type Node = { dir: true; kids: Record<string, Node> } | { dir: false; body: () => string };
+  const file = (body: () => string): Node => ({ dir: false, body });
+  const dir = (kids: Record<string, Node>): Node => ({ dir: true, kids });
+  const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const projFile = (p: (typeof D.projects)[number]) => () => {
+    const m = projectMeta[p.id] || {};
+    return [`# ${p.name}`, p.tag, '', p.desc, '', ...p.points.map((x) => `- ${x}`), '', `Stack: ${p.stack.join(', ')}`,
+      m.live ? `Live: ${m.live}` : '', m.code ? `Code: ${m.code}` : m.lock ? `Code: ${m.lock === 'company' ? L.finder.company : L.finder.private}` : ''].filter((x, i, a) => x !== '' || a[i - 1] !== '').join('\n');
+  };
+  const root = dir({
+    Users: dir({ imrane: dir({
+      'about.txt': file(() => D.about.text),
+      'README.md': file(() => `# Imrane Adli\n${L.about.role} — Casablanca\n\n${D.about.text}\n\n${fr ? 'Tapez « help » pour la liste des commandes.' : 'Type "help" for the list of commands.'}`),
+      'contact.vcf': file(() => `BEGIN:VCARD\nFN:Imrane Adli\nEMAIL:${site.email}\nTEL:${site.phone}\nURL:${site.linkedin}\nURL:${site.github}\nEND:VCARD`),
+      'skills.json': file(() => JSON.stringify(Object.fromEntries(stack.map((g, i) => [D.stackGroups[i], g.map((x) => x[1])])), null, 2)),
+      projects: dir(Object.fromEntries(D.projects.map((p) => [`${p.id}.md`, file(projFile(p))]))),
+      experience: dir(Object.fromEntries(D.experience.items.map((e) => [`${slug(e.org)}.md`, file(() => `# ${e.role}\n${e.org} · ${e.period}\n\n${e.desc}`)]))),
+      education: dir({
+        'degrees.md': file(() => D.experience.education.items.map((e) => `- ${e.role} — ${e.org} (${e.period})`).join('\n')),
+        'certifications.md': file(() => D.experience.certs.items.map((c) => `- ${c}`).join('\n')),
+      }),
+    }) }),
+  });
+  const HOME = ['Users', 'imrane'];
+  let cwd = [...HOME];
+  const fmt = (p: string[]) => { const s = '/' + p.join('/'); const hm = '/' + HOME.join('/'); return s === hm ? '~' : s.startsWith(hm + '/') ? '~' + s.slice(hm.length) : s; };
+  const resolve = (arg = ''): string[] | null => {
+    let parts = arg.startsWith('/') ? [] : arg.startsWith('~') ? [...HOME] : [...cwd];
+    for (const seg of arg.replace(/^~/, '').split('/')) {
+      if (!seg || seg === '.') continue;
+      if (seg === '..') parts.pop(); else parts.push(seg);
+    }
+    return parts;
+  };
+  const get = (p: string[] | null): Node | null => {
+    if (!p) return null; let n: Node = root;
+    for (const s of p) { if (!n.dir || !n.kids[s]) return null; n = n.kids[s]; }
+    return n;
+  };
+  const setPrompt = () => { promptEl.innerHTML = `<span class="ps">imrane</span>@<span class="path">casablanca</span> <span class="cwd">${esc(fmt(cwd))}</span> %`; };
+  const fsEntry = (name: string, n: Node) => (n.dir ? `<span class="d">${esc(name)}/</span>` : esc(name));
+  const sizeOf = (n: Node) => (n.dir ? 4096 : new Blob([n.body()]).size);
+
+  const helpRows: [string, string, string][] = [
+    ['help', 'liste des commandes', 'list commands'],
+    ['ls [-la] [dir]', 'lister les fichiers', 'list files'],
+    ['cd <dir>', 'changer de dossier', 'change directory'],
+    ['pwd', 'dossier courant', 'current directory'],
+    ['cat <file>', 'afficher un fichier', 'print a file'],
+    ['tree', 'arborescence', 'directory tree'],
+    ['mkdir / touch / rm', 'gérer des fichiers (en mémoire)', 'manage files (in memory)'],
+    ['find <nom>', 'chercher un fichier', 'search for a file'],
+    ['grep <mot>', 'chercher dans les fichiers', 'search inside files'],
+    ['whoami / about', 'qui suis-je', 'who am I'],
+    ['projects / open <id>', 'mes projets', 'my projects'],
+    ['experience / skills', 'parcours et stack', 'journey and stack'],
+    ['contact / whatsapp', 'me joindre', 'reach me'],
+    ['github / linkedin', 'ouvrir mes profils', 'open my profiles'],
+    ['neofetch', 'infos système', 'system info'],
+    ['history / man <cmd>', 'historique, aide', 'history, manual'],
+    ['date / cal / uptime', 'temps', 'time'],
+    ['uname / which', 'système', 'system'],
+    ['theme / wallpaper / lang', 'apparence', 'appearance'],
+    ['clear (Ctrl+L)', 'effacer', 'clear screen'],
+    ['exit', 'fermer le terminal', 'close terminal'],
+  ];
   const cmds: Record<string, (arg: string) => void> = {
-    help: () => print(L.terminal.help.map(([c, d]) => `  <span class="hl">${c.padEnd(16)}</span><span class="dim">${d}</span>`).join('\n')),
+    help: () => print(helpRows.map(([c, f, e]) => `  <span class="hl">${c.padEnd(24)}</span><span class="dim">${fr ? f : e}</span>`).join('\n') + `\n<span class="dim">${fr ? 'Astuces : Tab complète, ↑/↓ historique, Ctrl+C annule.' : 'Tips: Tab completes, ↑/↓ history, Ctrl+C cancels.'}</span>`),
     whoami: () => print(`Imrane Adli — ${L.about.role}, Casablanca 🇲🇦`),
     about: () => print(esc(D.about.text)),
-    projects: () => print(D.projects.map((p) => `  <span class="hl">${p.id.padEnd(12)}</span>${esc(p.name)} <span class="dim">— ${esc(p.stack.join(', '))}</span>`).join('\n') + `\n<span class="dim">${lang === 'fr' ? 'Tapez « open <id> » pour en ouvrir un.' : 'Type "open <id>" to open one.'}</span>`),
+    projects: () => print(D.projects.map((p) => `  <span class="hl">${p.id.padEnd(12)}</span>${esc(p.name)} <span class="dim">— ${esc(p.stack.join(', '))}</span>`).join('\n') + `\n<span class="dim">${fr ? 'Tapez « open <id> » ou « cat projects/<id>.md ».' : 'Type "open <id>" or "cat projects/<id>.md".'}</span>`),
     open: (arg) => {
       const id = arg.trim().toLowerCase();
+      if (/^https?:\/\//.test(id)) { window.open(arg.trim(), '_blank', 'noopener'); return; }
       const p = D.projects.find((x) => x.id === id || x.name.toLowerCase().startsWith(id));
       if (!id || !p) { print(`<span class="err">${L.terminal.unknownProject}</span>${D.projects.map((x) => x.id).join(', ')}`); return; }
       print(`${L.terminal.opening}${esc(p.name)}…`);
       const w = openApp('finder'); setTimeout(() => (w.querySelector('.fx') as any)?.show(p.id), 50);
     },
     experience: () => print(D.experience.items.map((e) => `  <span class="hl">${esc(e.period.padEnd(22))}</span>${esc(e.role)} <span class="dim">@ ${esc(e.org)}</span>`).join('\n')),
-    skills: () => print(stack.map((g, i) => `  <span class="hl">${D.stackGroups[i].padEnd(16)}</span>${g.map((x) => x[1]).join(', ')}`).join('\n')),
-    contact: () => print(`  email     <a href="mailto:${site.email}">${site.email}</a>\n  linkedin  <a href="${site.linkedin}" target="_blank" rel="noopener">${site.linkedin.replace('https://www.', '')}</a>\n  github    <a href="${site.github}" target="_blank" rel="noopener">${site.github.replace('https://', '')}</a>\n  whatsapp  <a href="${site.whatsapp}" target="_blank" rel="noopener">${site.phone}</a>`),
+    skills: () => print(stack.map((g, i) => `  <span class="hl">${D.stackGroups[i].padEnd(18)}</span>${g.map((x) => x[1]).join(', ')}`).join('\n')),
+    contact: () => print(`  email     <a href="mailto:${site.email}">${site.email}</a>\n  whatsapp  <a href="${site.whatsapp}" target="_blank" rel="noopener">${site.phone}</a>\n  linkedin  <a href="${site.linkedin}" target="_blank" rel="noopener">${site.linkedin.replace('https://www.', '')}</a>\n  github    <a href="${site.github}" target="_blank" rel="noopener">${site.github.replace('https://', '')}</a>`),
     whatsapp: () => { print(`${L.terminal.opening}WhatsApp…`); window.open(site.whatsapp, '_blank', 'noopener'); },
+    github: () => { print(`${L.terminal.opening}GitHub…`); window.open(site.github, '_blank', 'noopener'); },
+    linkedin: () => { print(`${L.terminal.opening}LinkedIn…`); window.open(site.linkedin, '_blank', 'noopener'); },
+    mail: () => openApp('mail'),
     theme: () => toggleTheme(),
     wallpaper: (a) => { const w = WALLS.find((x) => x.id === a.trim()); if (w) { setWall(w.id); print('✔ ' + w[lang]); } else print(WALLS.map((x) => x.id).join('  ')); },
     lang: () => { location.href = lang === 'fr' ? '/en/' : '/'; },
     clear: () => { out.innerHTML = ''; },
-    ls: () => print('about.txt  projects/  experience/  skills.json  contact.vcf  README.md'),
-    pwd: () => print('/Users/imrane'),
+    pwd: () => print('/' + cwd.join('/')),
+    cd: (a) => {
+      const p = resolve(a.trim() || '~'); const n = get(p);
+      if (!n) return err(`cd: no such file or directory: ${a}`);
+      if (!n.dir) return err(`cd: not a directory: ${a}`);
+      cwd = p!; setPrompt();
+    },
+    ls: (a) => {
+      const args = a.split(/\s+/).filter(Boolean);
+      const long = args.some((x) => /^-\w*l/.test(x)), all = args.some((x) => /^-\w*a/.test(x));
+      const target = args.find((x) => !x.startsWith('-'));
+      const n = get(resolve(target || '')); if (!n) return err(`ls: ${target}: No such file or directory`);
+      if (!n.dir) return print(esc(target!));
+      const names = Object.keys(n.kids).sort();
+      if (long) {
+        const d = new Date().toLocaleDateString('en', { month: 'short', day: '2-digit' });
+        const rows = (all ? ['.', '..'] : []).map((x) => `drwxr-xr-x  imrane  staff  ${'4096'.padStart(6)}  ${d}  <span class="d">${x}</span>`)
+          .concat(names.map((k) => { const c = n.kids[k]; return `${c.dir ? 'drwxr-xr-x' : '-rw-r--r--'}  imrane  staff  ${String(sizeOf(c)).padStart(6)}  ${d}  ${fsEntry(k, c)}`; }));
+        print(`total ${names.length}\n` + rows.join('\n'));
+      } else print((all ? ['<span class="d">.</span>', '<span class="d">..</span>'] : []).concat(names.map((k) => fsEntry(k, n.kids[k]))).join('   '));
+    },
+    cat: (a) => {
+      if (!a.trim()) return err('usage: cat <file>');
+      for (const f of a.split(/\s+/)) { const n = get(resolve(f)); if (!n) err(`cat: ${f}: No such file or directory`); else if (n.dir) err(`cat: ${f}: Is a directory`); else print(esc(n.body())); }
+    },
+    tree: (a) => {
+      const start = get(resolve(a.trim())); if (!start || !start.dir) return err(`tree: ${a || '.'}: not a directory`);
+      const lines: string[] = [`<span class="d">${esc(a.trim() || '.')}</span>`]; let dirs = 0, files = 0;
+      const walk = (n: Node, pre: string) => { if (!n.dir) return; const ks = Object.keys(n.kids).sort(); ks.forEach((k, i) => { const last = i === ks.length - 1; const c = n.kids[k]; c.dir ? dirs++ : files++; lines.push(`${pre}${last ? '└── ' : '├── '}${fsEntry(k, c)}`); walk(c, pre + (last ? '    ' : '│   ')); }); };
+      walk(start, ''); lines.push(`\n${dirs} directories, ${files} files`); print(lines.join('\n'));
+    },
+    mkdir: (a) => { const name = a.trim(); if (!name) return err('usage: mkdir <dir>'); const n = get(cwd); if (n && n.dir) { if (n.kids[name]) return err(`mkdir: ${name}: File exists`); n.kids[name] = dir({}); } },
+    touch: (a) => { const name = a.trim(); if (!name) return err('usage: touch <file>'); const n = get(cwd); if (n && n.dir && !n.kids[name]) n.kids[name] = file(() => ''); },
+    rm: (a) => {
+      if (/-rf?\s+\/(\s|$)|-rf?\s+~\/?(\s|$)/.test(a)) return print(`<span class="err">${fr ? 'Bien essayé 😄 Ce portfolio est en lecture seule à la racine.' : 'Nice try 😄 This portfolio is read-only at the root.'}</span>`);
+      const name = a.split(/\s+/).filter((x) => !x.startsWith('-')).pop() || ''; const n = get(cwd);
+      if (!name || !n || !n.dir || !n.kids[name]) return err(`rm: ${name}: No such file or directory`);
+      if (n.kids[name].dir && !/-\w*r/.test(a)) return err(`rm: ${name}: is a directory`);
+      delete n.kids[name];
+    },
+    find: (a) => {
+      const q = a.trim().toLowerCase(); const res: string[] = [];
+      const walk = (n: Node, p: string) => { if (!n.dir) return; for (const [k, c] of Object.entries(n.kids)) { const pp = `${p}/${k}`; if (!q || k.toLowerCase().includes(q)) res.push(pp); walk(c, pp); } };
+      walk(get(cwd)!, '.'); print(res.length ? res.map(esc).join('\n') : `<span class="dim">${fr ? 'aucun résultat' : 'no match'}</span>`);
+    },
+    grep: (a) => {
+      const q = a.trim().toLowerCase(); if (!q) return err('usage: grep <word>'); const res: string[] = [];
+      const walk = (n: Node, p: string) => { if (!n.dir) { n.body().split('\n').forEach((l) => { if (l.toLowerCase().includes(q)) res.push(`<span class="d">${esc(p)}</span>: ${esc(l.trim()).replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), (m) => `<span class="hl">${m}</span>`)}`); }); return; } for (const [k, c] of Object.entries(n.kids)) walk(c, p ? `${p}/${k}` : k); };
+      walk(get(cwd)!, ''); print(res.length ? res.join('\n') : `<span class="dim">${fr ? 'aucun résultat' : 'no match'}</span>`);
+    },
+    history: () => print(history.map((c, i) => `${String(i + 1).padStart(4)}  ${esc(c)}`).join('\n')),
+    man: (a) => { const r = helpRows.find(([c]) => c.split(/[\s/]+/).includes(a.trim())); r ? print(`<span class="hl">${esc(r[0])}</span>\n    ${fr ? r[1] : r[2]}`) : err(`No manual entry for ${a}`); },
     date: () => print(new Date().toString()),
-    echo: (a) => print(esc(a)),
+    cal: () => {
+      const d = new Date(), y = d.getFullYear(), m = d.getMonth();
+      const first = (new Date(y, m, 1).getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate();
+      const title = d.toLocaleDateString(lang, { month: 'long', year: 'numeric' });
+      let s = title.padStart(Math.floor((20 + title.length) / 2)) + '\n' + (fr ? 'Lu Ma Me Je Ve Sa Di' : 'Mo Tu We Th Fr Sa Su') + '\n' + '   '.repeat(first);
+      for (let i = 1; i <= days; i++) { const c = String(i).padStart(2); s += (i === d.getDate() ? `<span class="inv">${c}</span>` : c) + ((first + i) % 7 === 0 ? '\n' : ' '); }
+      print(s);
+    },
+    uptime: () => { const s = Math.floor((Date.now() - started) / 1000); print(`up ${Math.floor(s / 60)} min ${s % 60} s, 1 user, load averages: 0.42 0.37 0.31`); },
+    uname: (a) => print(/-a/.test(a) ? 'imrane-os 26.0 Tahoe x86_64 Astro/Motion WebKit-compatible' : 'imrane-os'),
+    which: (a) => { const c = a.trim(); c && cmds[c] ? print(`/usr/bin/${esc(c)}`) : err(`${c} not found`); },
+    neofetch: () => {
+      const W = navigator.userAgent.includes('Firefox') ? 'Firefox' : navigator.userAgent.includes('Edg') ? 'Edge' : navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Safari';
+      const logo = ['      .--.      ', '     |o_o |     ', '     |:_/ |     ', '    //   \\ \\    ', '   (|     | )   ', "  /'\\_   _/`\\  ", '  \\___)=(___/  '];
+      const info = [`<span class="ps">imrane</span>@<span class="path">casablanca</span>`, '-----------------', `<span class="hl">OS</span>: imrane-os 26 (Tahoe)`, `<span class="hl">Host</span>: ${W}`, `<span class="hl">Resolution</span>: ${innerWidth}x${innerHeight}`, `<span class="hl">Shell</span>: zsh 5.9`, `<span class="hl">Role</span>: ${esc(L.about.role)}`, `<span class="hl">Stack</span>: React · Node.js · GCP · Go`, `<span class="hl">Location</span>: Casablanca 🇲🇦`];
+      print(info.map((l, i) => `<span class="path">${esc((logo[i] || '').padEnd(16))}</span>  ${l}`).join('\n'));
+    },
+    echo: (a) => print(esc(a.replace(/^["']|["']$/g, ''))),
     sudo: (a) => { if (/hire/.test(a)) { print(L.terminal.hire); openApp('mail'); } else print('<span class="err">imrane is not in the sudoers file. This incident will be reported. 😄</span>'); },
     exit: () => closeApp('terminal'),
   };
-  cmds['cat'] = (a) => (a.includes('about') || a.includes('README') ? cmds.about('') : a.includes('contact') ? cmds.contact('') : a.includes('skills') ? cmds.skills('') : print(`<span class="err">cat: ${esc(a)}: No such file</span>`));
+  cmds.dir = cmds.ls; cmds.ll = (a) => cmds.ls('-la ' + a); cmds.cls = cmds.clear; cmds.vim = cmds.nano = (a) => print(`<span class="dim">${fr ? 'Lecture seule ici — essayez' : 'Read-only here — try'} cat ${esc(a)}</span>`);
+
   const run = (raw: string) => {
     const line = raw.trim();
-    print(`<span class="ps">imrane</span>@<span class="path">casablanca</span> ~ % ${esc(line)}`);
+    print(`<span class="ps">imrane</span>@<span class="path">casablanca</span> <span class="cwd">${esc(fmt(cwd))}</span> % ${esc(line)}`);
     if (!line) return;
     history.push(line); hi = history.length;
     const [c, ...rest] = line.split(/\s+/);
     const fn = cmds[c.toLowerCase()];
     fn ? fn(rest.join(' ')) : print(`<span class="err">zsh: ${L.terminal.notFound}${esc(c)}</span>  <span class="dim">${L.terminal.hint}</span>`);
   };
+  const complete = () => {
+    const v = input.value; const parts = v.split(/\s+/);
+    if (parts.length <= 1) {
+      const m = Object.keys(cmds).filter((k) => k.startsWith(v)).sort();
+      if (m.length === 1) input.value = m[0] + ' '; else if (m.length > 1) print(m.join('   '));
+      return;
+    }
+    const word = parts[parts.length - 1]; const slash = word.lastIndexOf('/');
+    const base = slash >= 0 ? word.slice(0, slash + 1) : ''; const stem = word.slice(slash + 1);
+    const n = get(resolve(base || '.'));
+    if (!n || !n.dir) return;
+    const m = Object.keys(n.kids).filter((k) => k.startsWith(stem));
+    if (m.length === 1) { parts[parts.length - 1] = base + m[0] + (n.kids[m[0]].dir ? '/' : ''); input.value = parts.join(' '); }
+    else if (m.length > 1) print(m.map((k) => fsEntry(k, n.kids[k])).join('   '));
+  };
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { run(input.value); input.value = ''; }
     else if (e.key === 'ArrowUp') { if (hi > 0) input.value = history[--hi]; e.preventDefault(); }
     else if (e.key === 'ArrowDown') { input.value = hi < history.length - 1 ? history[++hi] : ((hi = history.length), ''); e.preventDefault(); }
-    else if (e.key === 'Tab') {
-      e.preventDefault();
-      const m = Object.keys(cmds).filter((k) => k.startsWith(input.value));
-      if (m.length === 1) input.value = m[0] + ' ';
-    }
+    else if (e.key === 'Tab') { e.preventDefault(); complete(); }
+    else if (e.ctrlKey && e.key.toLowerCase() === 'l') { e.preventDefault(); out.innerHTML = ''; }
+    else if (e.ctrlKey && e.key.toLowerCase() === 'c') { e.preventDefault(); print(`<span class="ps">imrane</span>@<span class="path">casablanca</span> <span class="cwd">${esc(fmt(cwd))}</span> % ${esc(input.value)}^C`); input.value = ''; }
   });
-  el.addEventListener('click', () => input.focus());
+  el.addEventListener('click', () => { if (!getSelection()?.toString()) input.focus(); });
+  setPrompt();
   print(`<span class="dim">Last login: ${new Date().toLocaleString(lang)} on ttys001</span>`);
   print(L.terminal.welcome);
-  // auto-type a first command
   const demo = 'whoami';
   let i = 0;
   const type = () => { if (i <= demo.length) { input.value = demo.slice(0, i++); setTimeout(type, 70); } else { setTimeout(() => { run(demo); input.value = ''; }, 250); } };
