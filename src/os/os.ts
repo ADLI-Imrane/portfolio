@@ -366,6 +366,48 @@ function dockRect(id: AppId) { return document.querySelector<HTMLElement>(`.dock
 function setOpenDot(id: AppId, on: boolean) { document.querySelector(`.dock-item[data-app="${id}"]`)?.classList.toggle('open', on); }
 function setMenuApp(title: string) { const m = $('#mb-app'); if (m) m.textContent = title; }
 
+/* ---------- native-feeling motion: physical springs compiled to CSS linear() easings ---------- */
+function springEasing(stiffness = 260, damping = 26, mass = 1) {
+  let x = 0, v = 0; const dt = 1 / 120; const pts: number[] = [];
+  let t = 0;
+  for (; t < 3; t += dt) {
+    const a = (-stiffness * (x - 1) - damping * v) / mass;
+    v += a * dt; x += v * dt; pts.push(x);
+    if (t > 0.1 && Math.abs(x - 1) < 0.001 && Math.abs(v) < 0.01) break;
+  }
+  const step = Math.max(1, Math.floor(pts.length / 60));
+  const s = pts.filter((_, i) => i % step === 0).map((p) => +p.toFixed(4));
+  s[s.length - 1] = 1;
+  return { easing: `linear(0, ${s.join(', ')})`, duration: Math.round(t * 1000) };
+}
+const supportsLinear = typeof CSS !== 'undefined' && CSS.supports?.('transition-timing-function', 'linear(0, 1)');
+const SPRING = supportsLinear ? springEasing(240, 25) : { easing: 'cubic-bezier(.32,.72,0,1)', duration: 520 };   // iOS-like, tiny overshoot
+const SNAPPY = supportsLinear ? springEasing(380, 34) : { easing: 'cubic-bezier(.32,.72,0,1)', duration: 380 };
+document.documentElement.style.setProperty('--spring', SPRING.easing);
+document.documentElement.style.setProperty('--spring-ms', `${SPRING.duration}ms`);
+
+/** macOS "genie" — the window funnels into its Dock icon (or out of it when reversed). */
+function genie(win: HTMLElement, reverse = false): Promise<void> {
+  const id = win.dataset.app as AppId;
+  const r = dockRect(id); const wr = win.getBoundingClientRect();
+  const W = wr.width, H = wr.height;
+  const icw = r ? r.width * 0.9 : 50;
+  const ox = r ? r.left + r.width / 2 - wr.left : W / 2;
+  const oy = r ? r.top + r.height * 0.3 - wr.top : H + 200;
+  const L = ox - icw / 2, R = ox + icw / 2;
+  const rect = `path('M0,0 L${W},0 C${W},${H * 0.5} ${W},${H * 0.5} ${W},${H} L0,${H} C0,${H * 0.5} 0,${H * 0.5} 0,0 Z')`;
+  const funnel = (k: number) => `path('M0,0 L${W},0 C${W},${H * (0.55 - 0.15 * k)} ${R},${H * (0.5 + 0.1 * k)} ${R},${H} L${L},${H} C${L},${H * (0.5 + 0.1 * k)} 0,${H * (0.55 - 0.15 * k)} 0,0 Z')`;
+  const frames: Keyframe[] = [
+    { offset: 0, clipPath: rect, transform: 'translate(0,0) scale(1,1)', opacity: 1 },
+    { offset: 0.38, clipPath: funnel(0), transform: 'translate(0,0) scale(1,1)', opacity: 1 },
+    { offset: 0.7, clipPath: funnel(1), transform: 'translate(0,0) scale(0.55,0.4)', opacity: 0.9 },
+    { offset: 1, clipPath: funnel(1), transform: 'translate(0,0) scale(0.12,0.02)', opacity: 0 },
+  ];
+  win.style.transformOrigin = `${ox}px ${oy}px`;
+  const anim = win.animate(frames, { duration: 600, easing: reverse ? 'cubic-bezier(.25,.8,.35,1)' : 'cubic-bezier(.45,0,.65,.9)', direction: reverse ? 'reverse' : 'normal', fill: 'both' });
+  return anim.finished.then(() => { anim.cancel(); win.style.transformOrigin = ''; });
+}
+
 function focus(win: HTMLElement) {
   win.style.zIndex = String(++z);
   wins.forEach((w) => w.classList.toggle('inactive', w !== win));
@@ -404,8 +446,10 @@ function openApp(id: AppId, pos?: { x: number; y: number }): HTMLElement {
   if (!reduce) {
     const r = dockRect(id), wr = win.getBoundingClientRect();
     const fromX = r ? r.left + r.width / 2 - (wr.left + wr.width / 2) : 0;
-    const fromY = r ? r.top - (wr.top + wr.height / 2) : 40;
-    animate(win, { opacity: [0, 1], transform: [`translate(${fromX}px, ${fromY}px) scale(0.2)`, 'translate(0px, 0px) scale(1)'] }, { duration: 0.45, ease });
+    const fromY = r ? r.top - (wr.top + wr.height / 2) : 60;
+    const s = r ? Math.max(0.08, r.width / wr.width) : 0.85;
+    win.animate([{ transform: `translate(${fromX}px, ${fromY}px) scale(${s})` }, { transform: 'translate(0,0) scale(1)' }], { duration: SPRING.duration, easing: SPRING.easing });
+    win.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' });
   }
   if (id === 'terminal') setTimeout(() => (win.querySelector('input') as HTMLInputElement)?.focus({ preventScroll: true }), 300);
   return win;
@@ -414,26 +458,26 @@ function openApp(id: AppId, pos?: { x: number; y: number }): HTMLElement {
 function closeApp(id: AppId) {
   const win = wins.get(id); if (!win) return;
   const done = () => { win.remove(); wins.delete(id); setOpenDot(id, false); const top = [...wins.values()].sort((a, b) => +b.style.zIndex - +a.style.zIndex)[0]; top ? focus(top) : setMenuApp('Finder'); };
-  reduce ? done() : animate(win, { opacity: 0, transform: 'scale(0.92)' }, { duration: 0.18 }).then(done);
+  if (reduce) return done();
+  win.style.pointerEvents = 'none';
+  win.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.94)' }], { duration: 200, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).finished.then(done);
 }
 
 function minimize(win: HTMLElement) {
-  const id = win.dataset.app as AppId;
-  const r = dockRect(id), wr = win.getBoundingClientRect();
-  const dx = r ? r.left + r.width / 2 - (wr.left + wr.width / 2) : 0;
-  const dy = r ? r.top + r.height / 2 - (wr.top + wr.height / 2) : wr.height;
-  const end = () => { win.hidden = true; win.style.transform = ''; win.style.opacity = ''; };
-  reduce ? end() : animate(win, { transform: `translate(${dx}px, ${dy}px) scale(0.05)`, opacity: 0.2 }, { duration: 0.45, ease: [0.5, 0, 0.75, 0] }).then(end);
+  if (win.dataset.anim) return;
+  const end = () => { win.hidden = true; delete win.dataset.anim; const top = [...wins.values()].filter((w) => !w.hidden).sort((a, b) => +b.style.zIndex - +a.style.zIndex)[0]; top ? focus(top) : setMenuApp('Finder'); };
+  if (reduce) return end();
+  win.dataset.anim = '1';
+  genie(win).then(end);
 }
 function restore(win: HTMLElement) {
   win.hidden = false;
-  const id = win.dataset.app as AppId;
-  const r = dockRect(id), wr = win.getBoundingClientRect();
-  const dx = r ? r.left + r.width / 2 - (wr.left + wr.width / 2) : 0;
-  const dy = r ? r.top + r.height / 2 - (wr.top + wr.height / 2) : wr.height;
-  if (!reduce) animate(win, { transform: [`translate(${dx}px, ${dy}px) scale(0.05)`, 'translate(0,0) scale(1)'], opacity: [0.2, 1] }, { duration: 0.45, ease });
+  if (reduce || win.dataset.anim) return;
+  win.dataset.anim = '1';
+  genie(win, true).then(() => delete win.dataset.anim);
 }
 function toggleMax(win: HTMLElement) {
+  const before = win.getBoundingClientRect();
   if (win.classList.contains('max')) {
     const prev = JSON.parse(win.dataset.prev || '{}');
     Object.assign(win.style, prev); win.classList.remove('max');
@@ -442,6 +486,14 @@ function toggleMax(win: HTMLElement) {
     Object.assign(win.style, { left: '0px', top: '30px', width: `${desktop.clientWidth}px`, height: `${desktop.clientHeight - 30 - 90}px` });
     win.classList.add('max');
   }
+  if (reduce) return;
+  const after = win.getBoundingClientRect();
+  const sx = before.width / after.width, sy = before.height / after.height;
+  win.style.transformOrigin = '0 0';
+  win.animate([
+    { transform: `translate(${before.left - after.left}px, ${before.top - after.top}px) scale(${sx}, ${sy})` },
+    { transform: 'translate(0,0) scale(1,1)' },
+  ], { duration: SNAPPY.duration, easing: SNAPPY.easing }).finished.then(() => (win.style.transformOrigin = ''));
 }
 
 function wireWindow(win: HTMLElement, id: AppId) {
@@ -723,7 +775,7 @@ function openSpotlight() {
   ov.onclick = (e) => { if (e.target === ov) close(); };
   render();
   setTimeout(() => input.focus(), 10);
-  if (!reduce) animate($('.sp-box', ov), { opacity: [0, 1], transform: ['scale(0.96) translateY(-8px)', 'scale(1) translateY(0)'] }, { duration: 0.25, ease });
+  if (!reduce) { const bx = $('.sp-box', ov); bx.animate([{ transform: 'scale(0.94) translateY(-10px)' }, { transform: 'scale(1) translateY(0)' }], { duration: SPRING.duration, easing: SPRING.easing }); bx.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160 }); }
 }
 
 /* ---------------- control center ---------------- */
@@ -750,7 +802,7 @@ function buildControlCenter() {
   };
   const toggle = (open?: boolean) => {
     const o = open ?? cc.hidden; cc.hidden = !o; btn.setAttribute('aria-expanded', String(o));
-    if (o) { $('#notifs').innerHTML = ''; labels(); if (!reduce) animate(cc, { opacity: [0, 1], transform: ['translateY(-6px) scale(0.98)', 'translateY(0px) scale(1)'] }, { duration: 0.22, ease }); }
+    if (o) { $('#notifs').innerHTML = ''; labels(); if (!reduce) { cc.style.transformOrigin = 'top right'; cc.animate([{ transform: 'scale(0.9)' }, { transform: 'scale(1)' }], { duration: SPRING.duration, easing: SPRING.easing }); cc.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160 }); } }
   };
   btn.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
   document.addEventListener('click', (e) => { if (!cc.hidden && !(e.target as HTMLElement).closest('#cc')) toggle(false); });
@@ -776,7 +828,7 @@ function notify(title: string, body: string, appId: AppId = 'about', onClick?: (
   const stack = $('#notifs'); if (!stack) return;
   const n = h(`<button class="notif"><span class="n-ic">${appIcon(appId)}</span><span class="n-t"><b>${esc(title)}</b><span>${esc(body)}</span></span><small>${lang === 'fr' ? 'maintenant' : 'now'}</small></button>`);
   stack.appendChild(n);
-  if (!reduce) animate(n, { opacity: [0, 1], transform: ['translateX(40px) scale(0.96)', 'translateX(0px) scale(1)'] }, { type: 'spring', stiffness: 260, damping: 22 });
+  if (!reduce) { n.animate([{ transform: 'translateX(110%)' }, { transform: 'translateX(0)' }], { duration: SPRING.duration, easing: SPRING.easing }); }
   const kill = () => { if (!n.isConnected) return; reduce ? n.remove() : animate(n, { opacity: 0, transform: 'translateX(40px)' }, { duration: 0.25 }).then(() => n.remove()); };
   n.addEventListener('click', () => { onClick?.(); kill(); });
   setTimeout(kill, 7000);
@@ -789,7 +841,7 @@ function mission(on: boolean) {
   if (on === missionOn) return;
   missionOn = on;
   document.body.classList.toggle('mission', on);
-  if (!on) { open.forEach((w) => { w.style.transition = reduce ? '' : 'transform .45s cubic-bezier(.22,1,.36,1)'; w.style.transform = ''; setTimeout(() => (w.style.transition = ''), 500); }); return; }
+  if (!on) { open.forEach((w) => { w.style.transition = reduce ? '' : `transform ${SPRING.duration}ms ${SPRING.easing}`; w.style.transform = ''; setTimeout(() => (w.style.transition = ''), SPRING.duration + 50); }); return; }
   if (!open.length) { missionOn = false; document.body.classList.remove('mission'); toast(lang === 'fr' ? 'Aucune fenêtre ouverte' : 'No open windows'); return; }
   const W = desktop.clientWidth, H = desktop.clientHeight - 140;
   const cols = Math.ceil(Math.sqrt(open.length)), rows = Math.ceil(open.length / cols);
@@ -799,7 +851,7 @@ function mission(on: boolean) {
     const s = Math.min((cw - 60) / w.offsetWidth, (ch - 60) / w.offsetHeight, 0.85);
     const tx = c * cw + cw / 2 - (w.offsetLeft + w.offsetWidth / 2);
     const ty = 60 + r * ch + ch / 2 - (w.offsetTop + w.offsetHeight / 2);
-    w.style.transition = reduce ? '' : 'transform .5s cubic-bezier(.22,1,.36,1)';
+    w.style.transition = reduce ? '' : `transform ${SPRING.duration}ms ${SPRING.easing}`;
     w.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
     w.dataset.title && w.setAttribute('data-mc', w.dataset.title);
   });

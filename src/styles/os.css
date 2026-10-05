@@ -243,10 +243,10 @@ a { color: inherit; }
 }
 .dock-item:hover .tip { opacity: 1; }
 .dock-sep { width: 1px; height: 50px; background: rgba(255,255,255,0.35); margin: 0 4px 6px; }
-.dock-item.bounce .ic { animation: bounce 0.6s ease 2; }
+.dock-item.bounce .ic { animation: bounce 0.85s 1; }
 .dock-item .ic { transition: transform 0.2s; }
 .dock-item:active .ic { transform: scale(0.92); filter: brightness(0.85); }
-@keyframes bounce { 50% { transform: translateY(-16px); } }
+@keyframes bounce { 0%, 100% { transform: translateY(0); animation-timing-function: cubic-bezier(.3,0,.6,1); } 32% { transform: translateY(-24px); animation-timing-function: cubic-bezier(.4,0,.7,1); } 58% { transform: translateY(0); animation-timing-function: cubic-bezier(.3,0,.6,1); } 76% { transform: translateY(-9px); animation-timing-function: cubic-bezier(.4,0,.7,1); } 90% { transform: translateY(0); } }
 
 /* boot */
 .boot { position: fixed; inset: 0; z-index: 99999; background: #000; display: grid; place-items: center; transition: opacity 0.6s; }
@@ -578,3 +578,8 @@ img.osi { width: 100%; height: 100%; display: block; object-fit: contain; border
 
 .home-app { text-decoration: none; color: inherit; }
 @media (max-width: 760px) { .dock-link, .dock-sep { display: none !important; } }
+
+/* system motion: springs everywhere */
+.widgets { transition: opacity .35s, transform var(--spring-ms, .5s) var(--spring, cubic-bezier(.32,.72,0,1)); }
+.wg { transition: transform var(--spring-ms, .5s) var(--spring, cubic-bezier(.32,.72,0,1)); }
+.win.dragging { will-change: left, top; }
