@@ -406,7 +406,7 @@ function toast(msg: string) {
 }
 function clock() {
   const now = new Date();
-  const tz = 'Africa/Casablanca';
+  const tz = undefined; // visitor's local time
   const time = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
   const mb = now.toLocaleString(lang, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: tz });
   $('#mb-clock').textContent = mb;
