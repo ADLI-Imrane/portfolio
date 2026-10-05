@@ -1,57 +1,47 @@
-// Original squircle app icons (no third-party brand marks).
-const sq = (bg: string, inner: string, id: string) => `
+// Original "liquid glass" style app icons — custom artwork, no third-party marks.
+const glass = (id: string, c1: string, c2: string, glyph: string) => `
 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <defs>${bg.startsWith('url') ? '' : ''}<linearGradient id="g-${id}" x1="0" y1="0" x2="0" y2="1">${bg}</linearGradient>
-  <linearGradient id="s-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
-  <rect x="4" y="4" width="92" height="92" rx="22" fill="url(#g-${id})"/>
-  ${inner}
-  <rect x="4" y="4" width="92" height="92" rx="22" fill="url(#s-${id})"/>
-  <rect x="4.5" y="4.5" width="91" height="91" rx="21.5" fill="none" stroke="#000" stroke-opacity=".18"/>
+  <defs>
+    <linearGradient id="b-${id}__U__" x1="0.1" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient>
+    <radialGradient id="h-${id}__U__" cx="0.3" cy="0.05" r="0.75"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".55" stop-color="#fff" stop-opacity=".06"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="r-${id}__U__" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".85"/><stop offset=".45" stop-color="#fff" stop-opacity=".1"/><stop offset="1" stop-color="#fff" stop-opacity=".45"/></linearGradient>
+    <filter id="g-${id}__U__" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#000" flood-opacity=".28"/></filter>
+  </defs>
+  <rect x="5" y="5" width="90" height="90" rx="24" fill="url(#b-${id}__U__)"/>
+  <rect x="5" y="5" width="90" height="90" rx="24" fill="url(#h-${id}__U__)"/>
+  <g filter="url(#g-${id}__U__)">${glyph}</g>
+  <rect x="5.75" y="5.75" width="88.5" height="88.5" rx="23.25" fill="none" stroke="url(#r-${id}__U__)" stroke-width="1.5"/>
 </svg>`;
 
-export const icons: Record<string, string> = {
-  finder: sq(
-    '<stop offset="0" stop-color="#5AA9FF"/><stop offset="1" stop-color="#1F5BE0"/>',
-    `<path d="M22 34a6 6 0 0 1 6-6h14l6 6h24a6 6 0 0 1 6 6v28a6 6 0 0 1-6 6H28a6 6 0 0 1-6-6z" fill="#cfe5ff"/>
-     <path d="M22 42h56v26a6 6 0 0 1-6 6H28a6 6 0 0 1-6-6z" fill="#fff"/>
-     <path d="M40 56h20" stroke="#1F5BE0" stroke-width="4" stroke-linecap="round"/>`,
-    'finder'
-  ),
-  terminal: sq(
-    '<stop offset="0" stop-color="#3a3f47"/><stop offset="1" stop-color="#0d0f12"/>',
-    `<rect x="18" y="22" width="64" height="56" rx="8" fill="#111418" stroke="#2c323b"/>
-     <path d="M28 40l10 8-10 8" fill="none" stroke="#5CF08A" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-     <path d="M44 58h20" stroke="#E6EDF3" stroke-width="5" stroke-linecap="round"/>`,
-    'terminal'
-  ),
-  notes: sq(
-    '<stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#F6B90C"/>',
-    `<rect x="22" y="20" width="56" height="60" rx="6" fill="#fffbea"/>
-     <rect x="22" y="20" width="56" height="12" rx="6" fill="#F6B90C" opacity=".55"/>
-     <path d="M30 44h40M30 54h40M30 64h26" stroke="#c9b87a" stroke-width="3.5" stroke-linecap="round"/>`,
-    'notes'
-  ),
-  skills: sq(
-    '<stop offset="0" stop-color="#A78BFA"/><stop offset="1" stop-color="#6D28D9"/>',
-    `<g fill="#fff"><rect x="24" y="24" width="22" height="22" rx="6"/><rect x="54" y="24" width="22" height="22" rx="11" opacity=".85"/>
-     <rect x="24" y="54" width="22" height="22" rx="11" opacity=".85"/><rect x="54" y="54" width="22" height="22" rx="6"/></g>`,
-    'skills'
-  ),
-  mail: sq(
-    '<stop offset="0" stop-color="#6EE7F9"/><stop offset="1" stop-color="#0EA5E9"/>',
-    `<rect x="20" y="30" width="60" height="42" rx="7" fill="#fff"/>
-     <path d="M22 34l28 20 28-20" fill="none" stroke="#0EA5E9" stroke-width="4" stroke-linejoin="round"/>`,
-    'mail'
-  ),
-  readme: sq(
-    '<stop offset="0" stop-color="#F8FAFC"/><stop offset="1" stop-color="#CBD5E1"/>',
-    `<path d="M30 18h28l14 14v50a4 4 0 0 1-4 4H30a4 4 0 0 1-4-4V22a4 4 0 0 1 4-4z" fill="#fff" stroke="#94A3B8"/>
-     <path d="M58 18v14h14" fill="#E2E8F0" stroke="#94A3B8"/>
-     <text x="49" y="66" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="15" font-weight="700" fill="#334155">MD</text>`,
-    'readme'
-  ),
+const raw: Record<string, string> = {
+  finder: glass('finder', '#6fb6ff', '#2a5cf0',
+    `<path d="M24 36a6 6 0 0 1 6-6h12l6 6h22a6 6 0 0 1 6 6v24a6 6 0 0 1-6 6H30a6 6 0 0 1-6-6z" fill="#fff" fill-opacity=".38"/>
+     <path d="M24 44h52v22a6 6 0 0 1-6 6H30a6 6 0 0 1-6-6z" fill="#fff"/>
+     <path d="M41 57h18" stroke="#2a5cf0" stroke-width="4" stroke-linecap="round"/>`),
+  terminal: glass('terminal', '#4b5563', '#0b0e13',
+    `<path d="M28 38l11 10-11 10" fill="none" stroke="#7CF5A6" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+     <path d="M46 62h24" stroke="#fff" stroke-width="5.5" stroke-linecap="round"/>`),
+  notes: glass('notes', '#ffe58a', '#f2a900',
+    `<rect x="26" y="22" width="48" height="56" rx="7" fill="#fff"/>
+     <path d="M34 40h32M34 50h32M34 60h20" stroke="#e0b542" stroke-width="4" stroke-linecap="round"/>`),
+  skills: glass('skills', '#c4a8ff', '#6a2cf0',
+    `<g fill="#fff"><rect x="26" y="26" width="20" height="20" rx="6"/><circle cx="64" cy="36" r="10" fill-opacity=".85"/>
+     <circle cx="36" cy="64" r="10" fill-opacity=".85"/><rect x="54" y="54" width="20" height="20" rx="6"/></g>`),
+  mail: glass('mail', '#7fe3ff', '#1592e6',
+    `<rect x="22" y="32" width="56" height="38" rx="7" fill="#fff"/>
+     <path d="M25 36l25 18 25-18" fill="none" stroke="#1592e6" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>`),
+  readme: glass('readme', '#f1f5f9', '#b8c4d6',
+    `<path d="M32 20h24l14 14v42a4 4 0 0 1-4 4H32a4 4 0 0 1-4-4V24a4 4 0 0 1 4-4z" fill="#fff"/>
+     <path d="M56 20v14h14" fill="#e2e8f0"/>
+     <text x="49" y="66" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="15" font-weight="800" fill="#475569">MD</text>`),
   folder: `<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M6 14a6 6 0 0 1 6-6h24l8 8h44a6 6 0 0 1 6 6v6H6z" fill="#7DB7FF"/>
-    <rect x="6" y="20" width="88" height="54" rx="6" fill="#9CC9FF"/>
-    <rect x="6" y="20" width="88" height="10" rx="5" fill="#B6D7FF"/></svg>`,
+    <defs><linearGradient id="fb__U__" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd0ff"/><stop offset="1" stop-color="#4b9bff"/></linearGradient>
+    <linearGradient id="ff__U__" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfe7ff" stop-opacity=".95"/><stop offset="1" stop-color="#7ab8ff" stop-opacity=".9"/></linearGradient></defs>
+    <path d="M6 16a7 7 0 0 1 7-7h22l8 8h44a7 7 0 0 1 7 7v6H6z" fill="url(#fb__U__)"/>
+    <rect x="6" y="22" width="88" height="52" rx="8" fill="url(#ff__U__)"/>
+    <rect x="6.75" y="22.75" width="86.5" height="50.5" rx="7.25" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="1.5"/></svg>`,
 };
+
+let uid = 0;
+/** Returns the icon markup with gradient/filter ids unique to this insertion. */
+export const icon = (name: string) => (raw[name] || '').replace(/__U__/g, `-${++uid}`);

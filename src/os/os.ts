@@ -1,7 +1,7 @@
 import { animate } from 'motion';
 import { t, site, stack, type Lang } from '../i18n';
 import { ui } from './ui';
-import { icons } from './icons';
+import { icon } from './icons';
 
 const lang = (document.documentElement.lang === 'en' ? 'en' : 'fr') as Lang;
 const L = ui[lang];
@@ -21,7 +21,7 @@ const photo = '/img/imrane.webp';
 type AppId = 'about' | 'finder' | 'terminal' | 'notes' | 'skills' | 'mail' | 'readme';
 interface AppDef { id: AppId; title: string; icon: string; w: number; h: number; render: (win: HTMLElement) => HTMLElement }
 
-const appIcon = (id: AppId) => (id === 'about' ? `<img src="${photo}" alt="" />` : icons[id]);
+const appIcon = (id: AppId) => (id === 'about' ? `<img src="${photo}" alt="" />` : icon(id));
 
 const projectMeta: Record<string, { img?: string; live?: string; code?: string; lock?: 'private' | 'company' }> = {
   tunneleads: { img: '/img/tunneleads-demo.webp', lock: 'private' },
@@ -59,8 +59,8 @@ function renderFinder(): HTMLElement {
     crumb.textContent = `${L.finder.all} — ${D.projects.length + D.more.items.length} ${L.finder.items}`;
     content.className = 'f-content f-grid';
     content.innerHTML =
-      D.projects.map((p) => `<button class="f-item" data-p="${p.id}"><span class="fi">${icons.folder}</span><b>${esc(p.name)}</b><small>${esc(p.stack.slice(0, 2).join(' · '))}</small></button>`).join('') +
-      D.more.items.map((m) => `<div class="f-item" title="${esc(m.desc)}"><span class="fi">${icons.folder}</span><b>${esc(m.name)}</b><small>${esc(m.stack.split(' · ').slice(0, 2).join(' · '))}</small></div>`).join('');
+      D.projects.map((p) => `<button class="f-item" data-p="${p.id}"><span class="fi">${icon('folder')}</span><b>${esc(p.name)}</b><small>${esc(p.stack.slice(0, 2).join(' · '))}</small></button>`).join('') +
+      D.more.items.map((m) => `<div class="f-item" title="${esc(m.desc)}"><span class="fi">${icon('folder')}</span><b>${esc(m.name)}</b><small>${esc(m.stack.split(' · ').slice(0, 2).join(' · '))}</small></div>`).join('');
   };
   const showProject = (id: string) => {
     const p = D.projects.find((x) => x.id === id);
@@ -342,7 +342,7 @@ const dockOrder: (AppId | '|')[] = ['about', 'finder', 'terminal', 'notes', 'ski
 function buildDock() {
   const dock = $('#dock');
   dock.innerHTML = dockOrder.map((id) => id === '|' ? '<span class="dock-sep"></span>' :
-    `<button class="dock-item" data-app="${id}" aria-label="${esc(apps[id].title === 'imrane — zsh — 80×24' ? L.apps.terminal : apps[id].title)}"><span class="ic">${apps[id].icon}</span><span class="tip">${id === 'terminal' ? L.apps.terminal : apps[id].title}</span><span class="dot"></span></button>`).join('');
+    `<button class="dock-item" data-app="${id}" aria-label="${esc(apps[id].title === 'imrane — zsh — 80×24' ? L.apps.terminal : apps[id].title)}"><span class="ic">${appIcon(id)}</span><span class="tip">${id === 'terminal' ? L.apps.terminal : apps[id].title}</span><span class="dot"></span></button>`).join('');
   dock.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('.dock-item'); if (!b) return;
     const id = b.dataset.app as AppId;
@@ -375,7 +375,7 @@ function buildDesktopIcons() {
     { id: 'terminal', label: 'Terminal' },
   ];
   const box = $('#d-icons');
-  box.innerHTML = list.map((it, i) => `<button class="d-icon" data-i="${i}"><span class="ic">${it.proj ? icons.folder : apps[it.id].icon}</span><span>${it.label}</span></button>`).join('');
+  box.innerHTML = list.map((it, i) => `<button class="d-icon" data-i="${i}"><span class="ic">${it.proj ? icon('folder') : appIcon(it.id)}</span><span>${it.label}</span></button>`).join('');
   box.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('.d-icon'); if (!b) return;
     box.querySelectorAll('.d-icon').forEach((x) => x.classList.toggle('sel', x === b));
@@ -388,7 +388,7 @@ function buildDesktopIcons() {
   });
   const home = $('#home-grid');
   const homeApps: AppId[] = ['about', 'finder', 'terminal', 'notes', 'skills', 'mail', 'readme'];
-  home.innerHTML = homeApps.map((id) => `<button class="home-app" data-app="${id}"><span class="ic">${apps[id].icon}</span>${id === 'terminal' ? L.apps.terminal : apps[id].title}</button>`).join('');
+  home.innerHTML = homeApps.map((id) => `<button class="home-app" data-app="${id}"><span class="ic">${appIcon(id)}</span>${id === 'terminal' ? L.apps.terminal : apps[id].title}</button>`).join('');
   home.addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('.home-app'); if (b) openApp(b.dataset.app as AppId); });
 }
 
