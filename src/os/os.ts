@@ -2,6 +2,7 @@ import { animate } from 'motion';
 import { t, site, stack, type Lang } from '../i18n';
 import { ui } from './ui';
 import { icon } from './icons';
+import { g } from './glyphs';
 
 const lang = (document.documentElement.lang === 'en' ? 'en' : 'fr') as Lang;
 const L = ui[lang];
@@ -19,7 +20,7 @@ const photo = '/img/imrane.webp';
 
 /* ---------------- apps ---------------- */
 type AppId = 'about' | 'finder' | 'terminal' | 'notes' | 'skills' | 'mail' | 'readme';
-interface AppDef { id: AppId; title: string; icon: string; w: number; h: number; render: (win: HTMLElement) => HTMLElement }
+interface AppDef { id: AppId; title: string; icon: string; w: number; h: number; render: (win: HTMLElement) => HTMLElement; chrome?: 'sidebar' }
 
 const appIcon = (id: AppId) => (id === 'about' ? `<img src="${photo}" alt="" />` : icon(id));
 
@@ -47,47 +48,156 @@ function renderAbout(): HTMLElement {
 }
 
 function renderFinder(): HTMLElement {
-  const folderSvg = `<svg viewBox="0 0 16 16"><path d="M1.5 4a1 1 0 0 1 1-1h3.6l1.4 1.4h5.9a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" fill="#3b82f6"/></svg>`;
-  const side = D.projects.map((p) => `<button data-p="${p.id}">${folderSvg}${esc(p.name)}</button>`).join('');
-  const el = h(`<div class="finder">
-    <aside class="f-side"><h4>${L.finder.sidebar}</h4><button data-p="" class="on">${folderSvg}${L.finder.all}</button>${side}</aside>
-    <div class="f-main"><div class="f-bar"><span class="f-crumb">${L.finder.all}</span></div><div class="f-content"></div></div>
-  </div>`);
-  const content = $('.f-content', el);
-  const crumb = $('.f-crumb', el);
-  const showGrid = () => {
-    crumb.textContent = `${L.finder.all} — ${D.projects.length + D.more.items.length} ${L.finder.items}`;
-    content.className = 'f-content f-grid';
-    content.innerHTML =
-      D.projects.map((p) => `<button class="f-item" data-p="${p.id}"><span class="fi">${icon('folder')}</span><b>${esc(p.name)}</b><small>${esc(p.stack.slice(0, 2).join(' · '))}</small></button>`).join('') +
-      D.more.items.map((m) => `<div class="f-item" title="${esc(m.desc)}"><span class="fi">${icon('folder')}</span><b>${esc(m.name)}</b><small>${esc(m.stack.split(' · ').slice(0, 2).join(' · '))}</small></div>`).join('');
+  const fr = lang === 'fr';
+  const T = {
+    title: L.apps.finder,
+    recents: fr ? 'Récents' : 'Recents',
+    featured: fr ? 'Projets phares' : 'Featured',
+    others: fr ? 'Autres projets' : 'Other projects',
+    favorites: fr ? 'Favoris' : 'Favorites',
+    places: fr ? 'Emplacements' : 'Locations',
+    showLess: fr ? 'Afficher moins' : 'Show Less',
+    showAll: fr ? 'Tout afficher' : 'Show All',
+    selected: (n: number, total: number) => (fr ? `${n} sur ${total} sélectionné${n > 1 ? 's' : ''}` : `${n} of ${total} selected`),
+    items: (n: number) => (fr ? `${n} éléments` : `${n} items`),
+    disk: fr ? '6 projets · 4 expériences' : '6 projects · 4 experiences',
+    search: fr ? 'Rechercher' : 'Search',
   };
-  const showProject = (id: string) => {
-    const p = D.projects.find((x) => x.id === id);
-    if (!p) return showGrid();
+  type Item = { id: string; name: string; sub: string; thumb: string; detail?: boolean; group: 'featured' | 'others' };
+  const thumbs: Record<string, string> = { tunneleads: '/img/tunneleads-demo.webp' };
+  const items: Item[] = [
+    ...D.projects.map((p) => ({ id: p.id, name: p.name, sub: p.stack.slice(0, 2).join(' · '), thumb: thumbs[p.id] || '', detail: true, group: 'featured' as const })),
+    ...D.more.items.map((m, i) => ({ id: `more-${i}`, name: m.name, sub: m.stack.split(' · ').slice(0, 2).join(' · '), thumb: '', group: 'others' as const })),
+  ];
+  const side = (key: string, glyph: string, label: string, extra = '') => `<button class="fs-item" data-nav="${key}" ${extra}>${g[glyph]}<span>${label}</span></button>`;
+  const el = h(`<div class="fx">
+    <aside class="fx-side">
+      <div class="fx-side-top" data-drag></div>
+      ${side('recents', 'clock', T.recents)}
+      ${side('featured', 'star', T.featured)}
+      <h5>${T.favorites}</h5>
+      ${side('all', 'folderOpen', T.title)}
+      ${side('others', 'folder', T.others)}
+      ${side('notes', 'briefcase', L.apps.notes, 'data-open="notes"')}
+      ${side('skills', 'code', L.apps.skills, 'data-open="skills"')}
+      ${side('mail', 'mail', L.apps.mail, 'data-open="mail"')}
+      <h5>${T.places}</h5>
+      ${side('about', 'house', 'imrane', 'data-open="about"')}
+      <a class="fs-item" href="${site.github}" target="_blank" rel="noopener">${g.globe}<span>GitHub</span></a>
+      <a class="fs-item" href="${site.linkedin}" target="_blank" rel="noopener">${g.link}<span>LinkedIn</span></a>
+    </aside>
+    <div class="fx-main">
+      <div class="fx-toolbar" data-drag>
+        <div class="pill nav"><button data-back aria-label="Back">${g.chevronLeft}</button><span class="sep"></span><button data-fwd aria-label="Forward">${g.chevronRight}</button></div>
+        <h3 class="fx-title" data-drag>${T.title}</h3>
+        <div class="pill views" role="radiogroup">
+          <button class="on" data-view="grid" aria-label="Icons">${g.layoutGrid}</button><button data-view="list" aria-label="List">${g.list}</button><button data-view="grid" aria-label="Columns">${g.columns}</button><button data-view="gallery" aria-label="Gallery">${g.gallery}</button>
+        </div>
+        <div class="pill acts"><button aria-label="Share" data-share>${g.share}</button><button aria-label="Tags">${g.tag}</button><button aria-label="More">${g.ellipsis}</button></div>
+        <label class="pill search">${g.search}<input placeholder="${T.search}" aria-label="${T.search}" /></label>
+      </div>
+      <div class="fx-tabs"><span class="fx-tab">${T.title}</span><button class="fx-add" aria-label="New tab">${g.plus}</button></div>
+      <div class="fx-content"></div>
+      <div class="fx-path"></div>
+      <div class="fx-status"><span class="fx-count"></span><input class="fx-zoom" type="range" min="64" max="140" value="96" aria-label="Icon size" /></div>
+    </div>
+  </div>`);
+  const content = $('.fx-content', el), path = $('.fx-path', el), count = $('.fx-count', el), title = $('.fx-title', el), tab = $('.fx-tab', el);
+  let view: 'grid' | 'list' | 'gallery' = 'grid';
+  let scope = 'all';
+  let query = '';
+  let selected = '';
+  const collapsed = new Set<string>();
+  const histBack: string[] = [], histFwd: string[] = [];
+
+  const thumb = (it: Item, big = false) => it.thumb
+    ? `<span class="th photo"><img src="${it.thumb}" alt="" loading="lazy" /></span>`
+    : `<span class="th">${icon('folder')}</span>`;
+  const setPath = (parts: string[]) => {
+    path.innerHTML = ['Macintosh HD', 'Users', 'imrane', ...parts].map((p, i, a) => `<span class="${i === a.length - 1 ? 'cur' : ''}">${i < 3 ? g.folder : ''}${esc(p)}</span>`).join('<i>›</i>');
+  };
+  const visible = () => items.filter((it) => (scope === 'featured' ? it.group === 'featured' : scope === 'others' ? it.group === 'others' : true) && (!query || it.name.toLowerCase().includes(query)));
+  const updateStatus = (list: Item[]) => { count.textContent = selected ? T.selected(1, list.length) : T.items(list.length) + ' — ' + T.disk; };
+
+  const renderList = () => {
+    const list = visible();
+    const name = scope === 'featured' ? T.featured : scope === 'others' ? T.others : scope === 'recents' ? T.recents : T.title;
+    title.textContent = name; tab.textContent = name;
+    setPath([L.apps.finder, ...(scope === 'all' ? [] : [name])]);
+    content.className = `fx-content view-${view}`;
+    const groups: [string, string, Item[]][] = scope === 'recents' || scope === 'all'
+      ? [['featured', T.featured, list.filter((i) => i.group === 'featured')], ['others', T.others, list.filter((i) => i.group === 'others')]]
+      : [[scope, name, list]];
+    if (view === 'list') {
+      content.innerHTML = `<div class="fx-table"><div class="fx-row head"><span>${fr ? 'Nom' : 'Name'}</span><span>${fr ? 'Technos' : 'Stack'}</span><span>${fr ? 'Type' : 'Kind'}</span></div>${
+        list.map((it) => `<button class="fx-row ${selected === it.id ? 'sel' : ''}" data-item="${it.id}"><span class="nm">${it.thumb ? `<img src="${it.thumb}" alt="" />` : icon('folder')}${esc(it.name)}</span><span>${esc(it.sub)}</span><span>${fr ? 'Dossier' : 'Folder'}</span></button>`).join('')}</div>`;
+    } else {
+      content.innerHTML = groups.filter(([, , arr]) => arr.length).map(([key, label, arr]) => `
+        <section class="fx-group ${collapsed.has(key) ? 'collapsed' : ''}">
+          <header><h4>${label}</h4><button data-toggle="${key}">${collapsed.has(key) ? T.showAll : T.showLess}</button></header>
+          <div class="fx-grid">${arr.map((it) => `<button class="fx-item ${selected === it.id ? 'sel' : ''}" data-item="${it.id}">${thumb(it)}<span class="nm">${esc(it.name)}</span><small>${esc(it.sub)}</small></button>`).join('')}</div>
+        </section>`).join('');
+    }
+    updateStatus(list);
+  };
+  const renderDetail = (id: string) => {
+    const p = D.projects.find((x) => x.id === id); if (!p) return;
     const m = projectMeta[id] || {};
-    crumb.innerHTML = `<button class="mbtn" data-p="">← ${L.finder.back}</button>&nbsp; ${esc(p.name)}`;
-    content.className = 'f-content f-detail';
+    title.textContent = p.name; tab.textContent = p.name;
+    setPath([L.apps.finder, p.name]);
+    content.className = 'fx-content view-detail';
     const links = [
       m.live ? `<a class="mbtn primary" href="${m.live}" target="_blank" rel="noopener">${L.finder.live} ↗</a>` : '',
       m.code ? `<a class="mbtn" href="${m.code}" target="_blank" rel="noopener">${L.finder.code} ↗</a>` : '',
-      m.lock ? `<span>🔒 ${m.lock === 'company' ? L.finder.company : L.finder.private}</span>` : '',
+      m.lock ? `<span class="lock">🔒 ${m.lock === 'company' ? L.finder.company : L.finder.private}</span>` : '',
     ].join('');
-    content.innerHTML = `<span class="tag">${esc(p.tag)}</span><h2>${esc(p.name)}</h2>
-      ${m.img ? `<div class="shot"><img src="${m.img}" alt="${esc(p.name)}" style="width:100%;display:block" /></div>` : ''}
-      <p>${esc(p.desc)}</p><ul>${p.points.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+    content.innerHTML = `<article class="fx-detail">
+      <div class="fx-hero">${m.img ? `<img src="${m.img}" alt="${esc(p.name)}" />` : `<span class="big">${icon('folder')}</span>`}</div>
+      <div class="fx-info"><span class="tag">${esc(p.tag)}</span><h2>${esc(p.name)}</h2><p>${esc(p.desc)}</p>
+      <ul>${p.points.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
       <div class="chips">${p.stack.map((s) => `<span>${esc(s)}</span>`).join('')}</div>
-      <div class="f-foot">${links}</div>`;
+      <div class="f-foot">${links}</div></div></article>`;
+    count.textContent = T.selected(1, items.length);
   };
+  const go = (state: string, push = true) => {
+    if (push) { histBack.push(cur); histFwd.length = 0; }
+    cur = state;
+    el.querySelectorAll('.fs-item[data-nav]').forEach((b) => b.classList.toggle('on', (b as HTMLElement).dataset.nav === (state.startsWith('p:') ? '' : state)));
+    if (state.startsWith('p:')) renderDetail(state.slice(2)); else { scope = state; renderList(); }
+  };
+  let cur = 'all';
+
   el.addEventListener('click', (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-p]');
-    if (!b) return;
-    const id = b.dataset.p || '';
-    el.querySelectorAll('.f-side button').forEach((x) => x.classList.toggle('on', (x as HTMLElement).dataset.p === id));
-    id ? showProject(id) : showGrid();
+    const tgt = e.target as HTMLElement;
+    const nav = tgt.closest<HTMLElement>('.fs-item[data-nav]');
+    if (nav && !nav.dataset.open) { selected = ''; go(nav.dataset.nav!); return; }
+    const tog = tgt.closest<HTMLElement>('[data-toggle]');
+    if (tog) { const k = tog.dataset.toggle!; collapsed.has(k) ? collapsed.delete(k) : collapsed.add(k); renderList(); return; }
+    const v = tgt.closest<HTMLElement>('[data-view]');
+    if (v) { el.querySelectorAll('[data-view]').forEach((b) => b.classList.toggle('on', b === v)); view = (v.dataset.view as typeof view); if (!cur.startsWith('p:')) renderList(); return; }
+    if (tgt.closest('[data-back]')) { if (histBack.length) { histFwd.push(cur); go(histBack.pop()!, false); } return; }
+    if (tgt.closest('[data-fwd]')) { if (histFwd.length) { histBack.push(cur); go(histFwd.pop()!, false); } return; }
+    if (tgt.closest('[data-share]')) { try { navigator.clipboard.writeText(location.href); } catch {} toast(fr ? 'Lien copié' : 'Link copied'); return; }
+    const it = tgt.closest<HTMLElement>('[data-item]');
+    if (it) {
+      selected = it.dataset.item!;
+      el.querySelectorAll('[data-item]').forEach((x) => x.classList.toggle('sel', x === it));
+      updateStatus(visible());
+      if (isMobile()) { const item = items.find((x) => x.id === selected); if (item?.detail) go('p:' + selected); }
+    } else if (tgt.closest('.fx-content') && !tgt.closest('.fx-detail')) {
+      selected = ''; el.querySelectorAll('[data-item]').forEach((x) => x.classList.remove('sel')); updateStatus(visible());
+    }
   });
-  (el as any).show = (id: string) => { el.querySelectorAll('.f-side button').forEach((x) => x.classList.toggle('on', (x as HTMLElement).dataset.p === id)); showProject(id); };
-  showGrid();
+  el.addEventListener('dblclick', (e) => {
+    const it = (e.target as HTMLElement).closest<HTMLElement>('[data-item]');
+    if (!it) return;
+    const item = items.find((x) => x.id === it.dataset.item);
+    if (item?.detail) go('p:' + item.id);
+  });
+  ($('.search input', el) as HTMLInputElement).addEventListener('input', (e) => { query = (e.target as HTMLInputElement).value.toLowerCase(); if (cur.startsWith('p:')) go('all'); else renderList(); });
+  ($('.fx-zoom', el) as HTMLInputElement).addEventListener('input', (e) => el.style.setProperty('--th', `${(e.target as HTMLInputElement).value}px`));
+  (el as any).show = (id: string) => go('p:' + id);
+  go('all', false);
   return el;
 }
 
@@ -161,7 +271,7 @@ function renderTerminal(): HTMLElement {
       const p = D.projects.find((x) => x.id === id || x.name.toLowerCase().startsWith(id));
       if (!id || !p) { print(`<span class="err">${L.terminal.unknownProject}</span>${D.projects.map((x) => x.id).join(', ')}`); return; }
       print(`${L.terminal.opening}${esc(p.name)}…`);
-      const w = openApp('finder'); setTimeout(() => (w.querySelector('.finder') as any)?.show(p.id), 50);
+      const w = openApp('finder'); setTimeout(() => (w.querySelector('.fx') as any)?.show(p.id), 50);
     },
     experience: () => print(D.experience.items.map((e) => `  <span class="hl">${esc(e.period.padEnd(22))}</span>${esc(e.role)} <span class="dim">@ ${esc(e.org)}</span>`).join('\n')),
     skills: () => print(stack.map((g, i) => `  <span class="hl">${D.stackGroups[i].padEnd(16)}</span>${g.map((x) => x[1]).join(', ')}`).join('\n')),
@@ -209,7 +319,7 @@ function renderTerminal(): HTMLElement {
 
 const apps: Record<AppId, AppDef> = {
   about: { id: 'about', title: L.apps.about, icon: appIcon('about'), w: 620, h: 360, render: renderAbout },
-  finder: { id: 'finder', title: L.apps.finder, icon: appIcon('finder'), w: 820, h: 520, render: renderFinder },
+  finder: { id: 'finder', title: L.apps.finder, icon: appIcon('finder'), w: 960, h: 600, render: renderFinder, chrome: 'sidebar' },
   terminal: { id: 'terminal', title: `imrane — zsh — 80×24`, icon: appIcon('terminal'), w: 620, h: 380, render: renderTerminal },
   notes: { id: 'notes', title: L.apps.notes, icon: appIcon('notes'), w: 680, h: 420, render: renderNotes },
   skills: { id: 'skills', title: L.apps.skills, icon: appIcon('skills'), w: 640, h: 520, render: renderSkills },
@@ -253,6 +363,7 @@ function openApp(id: AppId, pos?: { x: number; y: number }): HTMLElement {
     </div><div class="win-title">${esc(def.title)}</div></div>
     <div class="win-body"></div><div class="resize" aria-hidden="true"></div></section>`);
   win.dataset.app = id; win.dataset.title = def.title;
+  if (def.chrome === 'sidebar') win.classList.add('chrome-sidebar');
   Object.assign(win.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${hgt}px` });
   $('.win-body', win).appendChild(def.render(win));
   desktop.appendChild(win);
@@ -310,6 +421,20 @@ function wireWindow(win: HTMLElement, id: AppId) {
   $('.l-max', win).addEventListener('click', (e) => { e.stopPropagation(); toggleMax(win); });
   const bar = $('.titlebar', win);
   bar.addEventListener('dblclick', (e) => { if (!(e.target as HTMLElement).closest('.lights')) toggleMax(win); });
+  win.addEventListener('dblclick', (e) => { const tg = e.target as HTMLElement; if (tg.closest('[data-drag]') && !tg.closest('button, input, a, label')) toggleMax(win); });
+  win.addEventListener('pointerdown', (e) => {
+    const tg = e.target as HTMLElement;
+    if (!tg.closest('[data-drag]') || tg.closest('button, input, a, label')) return;
+    if (isMobile() || win.classList.contains('max')) return;
+    const sx = e.clientX, sy = e.clientY, ox = win.offsetLeft, oy = win.offsetTop;
+    win.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => {
+      win.style.left = `${Math.min(Math.max(ox + ev.clientX - sx, -win.offsetWidth + 80), desktop.clientWidth - 80)}px`;
+      win.style.top = `${Math.min(Math.max(oy + ev.clientY - sy, 30), desktop.clientHeight - 60)}px`;
+    };
+    const up = () => { win.removeEventListener('pointermove', move); win.removeEventListener('pointerup', up); };
+    win.addEventListener('pointermove', move); win.addEventListener('pointerup', up);
+  });
   bar.addEventListener('pointerdown', (e) => {
     if ((e.target as HTMLElement).closest('.lights') || isMobile() || win.classList.contains('max')) return;
     const sx = e.clientX, sy = e.clientY, ox = win.offsetLeft, oy = win.offsetTop;
@@ -384,7 +509,7 @@ function buildDesktopIcons() {
     const b = (e.target as HTMLElement).closest<HTMLElement>('.d-icon'); if (!b) return;
     const it = list[Number(b.dataset.i)];
     const w = openApp(it.id);
-    if (it.proj) setTimeout(() => (w.querySelector('.finder') as any)?.show(it.proj), 30);
+    if (it.proj) setTimeout(() => (w.querySelector('.fx') as any)?.show(it.proj), 30);
   });
   const home = $('#home-grid');
   const homeApps: AppId[] = ['about', 'finder', 'terminal', 'notes', 'skills', 'mail', 'readme'];
