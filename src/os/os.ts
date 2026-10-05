@@ -503,20 +503,39 @@ function buildDock() {
     const w = wins.get(id);
     if (w && !w.hidden && w.style.zIndex === String(z)) minimize(w); else openApp(id);
   });
-  // magnification
+  // magnification — macOS-style: sizes are driven from a stable rest layout (no feedback loop)
+  // and eased every frame toward their target, so motion stays fluid at any pointer speed.
   const items = [...dock.querySelectorAll<HTMLElement>('.dock-item')];
   const base = () => (isMobile() ? 48 : 56);
-  dock.addEventListener('pointermove', (e) => {
-    if (reduce || isMobile()) return;
-    items.forEach((it) => {
-      const r = it.getBoundingClientRect();
-      const d = Math.abs(e.clientX - (r.left + r.width / 2));
-      const s = Math.max(0, 1 - d / 180);
-      const size = base() + 34 * s * s;
-      it.style.width = it.style.height = `${size}px`;
+  const MAX = 30, RANGE = 150;
+  let centers: number[] = [];
+  const cur = items.map(() => base());
+  const tgt = items.map(() => base());
+  let raf = 0, mx: number | null = null;
+  const measure = () => {
+    items.forEach((it) => (it.style.width = it.style.height = `${base()}px`));
+    centers = items.map((it) => { const r = it.getBoundingClientRect(); return r.left + r.width / 2; });
+    items.forEach((it, i) => (it.style.width = it.style.height = `${cur[i]}px`));
+  };
+  const step = () => {
+    let moving = false;
+    items.forEach((it, i) => {
+      if (mx === null) tgt[i] = base();
+      else {
+        const d = Math.abs(mx - centers[i]);
+        tgt[i] = base() + (d < RANGE ? MAX * (Math.cos((d / RANGE) * Math.PI) + 1) / 2 : 0);
+      }
+      const diff = tgt[i] - cur[i];
+      if (Math.abs(diff) > 0.05) { cur[i] += diff * 0.22; moving = true; } else cur[i] = tgt[i];
+      it.style.width = it.style.height = `${cur[i].toFixed(2)}px`;
     });
-  });
-  dock.addEventListener('pointerleave', () => items.forEach((it) => (it.style.width = it.style.height = `${base()}px`)));
+    raf = moving ? requestAnimationFrame(step) : 0;
+  };
+  const kick = () => { if (!raf) raf = requestAnimationFrame(step); };
+  dock.addEventListener('pointerenter', (e) => { if (reduce || isMobile()) return; measure(); mx = e.clientX; kick(); });
+  dock.addEventListener('pointermove', (e) => { if (reduce || isMobile()) return; if (!centers.length) measure(); mx = e.clientX; kick(); });
+  dock.addEventListener('pointerleave', () => { mx = null; kick(); });
+  addEventListener('resize', () => { centers = []; });
 }
 
 /* ---------------- desktop icons + mobile home ---------------- */

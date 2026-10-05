@@ -229,7 +229,7 @@ a { color: inherit; }
   box-shadow: 0 18px 50px -12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 0 0 1px rgba(255,255,255,0.18), inset 0 -10px 20px -10px rgba(255,255,255,0.12);
 }
 :root[data-theme='light'] .dock { background: rgba(255,255,255,0.35); }
-.dock-item { position: relative; width: 56px; height: 56px; display: grid; place-items: center; transform-origin: bottom center; will-change: width, height; }
+.dock-item { position: relative; width: 56px; height: 56px; display: grid; place-items: center; transform-origin: bottom center; flex: none; }
 .dock-item .ic { width: 100%; height: 100%; }
 .dock-item .ic svg, .dock-item .ic img { width: 100%; height: 100%; display: block; }
 .dock-item .ic img { border-radius: 26%; object-fit: cover; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.5); padding: 3px; }
