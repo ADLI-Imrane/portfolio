@@ -563,8 +563,8 @@ function clock() {
   const time = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
   const mb = now.toLocaleString(lang, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: tz });
   $('#mb-clock').textContent = mb;
-  $('#wall-clock').textContent = time;
-  $('#wall-date').textContent = now.toLocaleDateString(lang, { weekday: 'long', day: 'numeric', month: 'long', timeZone: tz });
+  const wc = $('#wall-clock'); if (wc) wc.textContent = time;
+  const wd = $('#wall-date'); if (wd) wd.textContent = now.toLocaleDateString(lang, { weekday: 'long', day: 'numeric', month: 'long', timeZone: tz });
 }
 function buildMenubar() {
   const menu = $('#brand-menu');
@@ -582,16 +582,265 @@ function buildMenubar() {
   clock(); setInterval(clock, 15000);
 }
 
+/* ---------------- desktop widgets ---------------- */
+function buildWidgets() {
+  const fr = lang === 'fr';
+  const box = $('#widgets'); if (!box) return;
+  const stackIcons = ['react', 'nextjs', 'nodejs', 'nestjs', 'ts', 'go', 'gcp', 'docker'];
+  box.innerHTML = `
+    <div class="wg wg-profile lg" data-open="about">
+      <img class="wg-ph" src="${photo}" alt="" />
+      <div><b>Imrane Adli</b><span>${L.about.role}</span>
+      <span class="wg-status"><i></i>${fr ? 'Disponible · temps plein' : 'Available · full-time'}</span></div>
+      <div class="wg-actions"><button class="wg-btn" data-open="finder">${fr ? 'Projets' : 'Projects'}</button><button class="wg-btn ghost" data-open="mail">${fr ? 'Contact' : 'Contact'}</button></div>
+    </div>
+    <div class="wg wg-clock sm" aria-label="clock">
+      <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" class="face"/>
+        ${Array.from({ length: 12 }, (_, i) => `<line x1="50" y1="8" x2="50" y2="${i % 3 ? 13 : 16}" transform="rotate(${i * 30} 50 50)" class="tick"/>`).join('')}
+        <line id="hh" x1="50" y1="50" x2="50" y2="28" class="hand h"/><line id="mh" x1="50" y1="50" x2="50" y2="17" class="hand m"/>
+        <line id="sh" x1="50" y1="58" x2="50" y2="14" class="hand s"/><circle cx="50" cy="50" r="2.6" class="pin"/></svg>
+    </div>
+    <div class="wg wg-cal sm"><span class="wg-dow" id="wg-dow"></span><b id="wg-day"></b><span class="wg-mon" id="wg-mon"></span></div>
+    <div class="wg wg-build md" data-project="tunneleads">
+      <span class="wg-k">${fr ? 'En cours' : 'Now building'}</span>
+      <b>Tunneleads</b>
+      <span class="wg-sub">${fr ? 'SaaS d’analyse d’appels par IA' : 'AI call-analysis SaaS'}</span>
+      <div class="wg-meter"><span><b>800+</b>${fr ? 'tests' : 'tests'}</span><span><b>Go</b>mTLS</span><span><b>Gemini</b>${fr ? "analyse IA" : "AI analysis"}</span></div>
+    </div>
+    <div class="wg wg-stack md" data-open="skills">
+      <span class="wg-k">Stack</span>
+      <div class="wg-icons">${stackIcons.map((i) => `<img src="/icons/${i}.svg" alt="" />`).join('')}</div>
+    </div>
+    <a class="wg wg-gh sm" href="${site.github}" target="_blank" rel="noopener">
+      <span class="wg-k">GitHub</span><b>1 100+</b><span class="wg-sub">${fr ? 'contributions cette année' : 'contributions this year'}</span>
+    </a>`;
+  box.addEventListener('click', (e) => {
+    const p = (e.target as HTMLElement).closest<HTMLElement>('[data-project]');
+    if (p) { const w = openApp('finder'); setTimeout(() => (w.querySelector('.fx') as any)?.show(p.dataset.project), 40); return; }
+    const o = (e.target as HTMLElement).closest<HTMLElement>('[data-open]');
+    if (o) openApp(o.dataset.open as AppId);
+  });
+  const tick = () => {
+    const d = new Date();
+    const s = d.getSeconds(), m = d.getMinutes() + s / 60, hh = (d.getHours() % 12) + m / 60;
+    $('#sh')?.setAttribute('transform', `rotate(${s * 6} 50 50)`);
+    $('#mh')?.setAttribute('transform', `rotate(${m * 6} 50 50)`);
+    $('#hh')?.setAttribute('transform', `rotate(${hh * 30} 50 50)`);
+    const dow = $('#wg-dow'); if (dow) dow.textContent = d.toLocaleDateString(lang, { weekday: 'long' });
+    const day = $('#wg-day'); if (day) day.textContent = String(d.getDate());
+    const mon = $('#wg-mon'); if (mon) mon.textContent = d.toLocaleDateString(lang, { month: 'long', year: 'numeric' });
+  };
+  tick(); setInterval(tick, 1000);
+  document.addEventListener('pointermove', (e) => {
+    document.querySelectorAll<HTMLElement>('.wg, .cc, .sp-box').forEach((el) => {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty('--mx', `${e.clientX - r.left}px`); el.style.setProperty('--my', `${e.clientY - r.top}px`);
+    });
+  }, { passive: true });
+  if (!reduce) animate('.wg', { opacity: [0, 1], transform: ['translateY(14px) scale(0.96)', 'translateY(0) scale(1)'] }, { duration: 0.6, ease, delay: (i: number) => 0.15 + i * 0.07 } as any);
+}
+
+/* ---------------- spotlight ---------------- */
+type Hit = { kind: string; title: string; sub: string; icon: string; run: () => void };
+function spotlightIndex(): Hit[] {
+  const fr = lang === 'fr';
+  const appHits: Hit[] = (Object.keys(apps) as AppId[]).map((id) => ({
+    kind: fr ? 'Applications' : 'Applications', title: id === 'terminal' ? L.apps.terminal : apps[id].title, sub: fr ? 'Application' : 'Application', icon: appIcon(id), run: () => openApp(id),
+  }));
+  const projHits: Hit[] = D.projects.map((p) => ({
+    kind: fr ? 'Projets' : 'Projects', title: p.name, sub: p.stack.join(' · '), icon: icon('folder'),
+    run: () => { const w = openApp('finder'); setTimeout(() => (w.querySelector('.fx') as any)?.show(p.id), 40); },
+  }));
+  const expHits: Hit[] = D.experience.items.map((e) => ({ kind: fr ? 'Parcours' : 'Experience', title: `${e.role} — ${e.org}`, sub: e.period, icon: icon('notes'), run: () => openApp('notes') }));
+  const skillHits: Hit[] = stack.flat().map(([i, n]) => ({ kind: fr ? 'Compétences' : 'Skills', title: n, sub: fr ? 'Technologie' : 'Technology', icon: `<img src="/icons/${i}.svg" alt="" />`, run: () => openApp('skills') }));
+  const cmdHits: Hit[] = [
+    { kind: fr ? 'Actions' : 'Actions', title: fr ? 'Basculer clair / sombre' : 'Toggle light / dark', sub: '⌘ ⇧ L', icon: icon('settings'), run: () => toggleTheme() },
+    { kind: fr ? 'Actions' : 'Actions', title: fr ? 'Copier mon e-mail' : 'Copy my email', sub: site.email, icon: icon('mail'), run: async () => { try { await navigator.clipboard.writeText(site.email); } catch {} toast(L.mail.copied); } },
+    { kind: fr ? 'Actions' : 'Actions', title: 'Mission Control', sub: 'F3 · Ctrl ↑', icon: icon('finder'), run: () => mission(true) },
+    { kind: fr ? 'Actions' : 'Actions', title: fr ? 'Passer en anglais' : 'Switch to French', sub: lang === 'fr' ? 'English' : 'Français', icon: icon('readme'), run: () => { location.href = lang === 'fr' ? '/en/' : '/'; } },
+    ...WALLS.map((w) => ({ kind: fr ? 'Fonds d’écran' : 'Wallpapers', title: w[lang], sub: fr ? 'Fond d’écran' : 'Wallpaper', icon: `<img src="/img/walls/${w.id}-thumb.jpg" alt="" />`, run: () => setWall(w.id) })),
+  ];
+  return [...appHits, ...projHits, ...expHits, ...skillHits, ...cmdHits];
+}
+function openSpotlight() {
+  const ov = $('#spotlight'); if (!ov) return;
+  ov.hidden = false;
+  const input = $('input', ov) as HTMLInputElement, res = $('.sp-res', ov);
+  const all = spotlightIndex();
+  let sel = 0, list: Hit[] = [];
+  const render = () => {
+    const q = input.value.trim().toLowerCase();
+    list = q ? all.filter((h) => (h.title + ' ' + h.sub + ' ' + h.kind).toLowerCase().includes(q)).slice(0, 9) : all.filter((h) => h.kind === all[0].kind).slice(0, 6);
+    sel = Math.min(sel, Math.max(0, list.length - 1));
+    let last = '';
+    res.innerHTML = list.length ? list.map((h, i) => {
+      const head = h.kind !== last ? `<div class="sp-k">${(last = h.kind)}</div>` : '';
+      return `${head}<button class="sp-hit ${i === sel ? 'on' : ''}" data-i="${i}"><span class="sp-ic">${h.icon}</span><span class="sp-t">${esc(h.title)}<small>${esc(h.sub)}</small></span><kbd>↩</kbd></button>`;
+    }).join('') : `<div class="sp-empty">${lang === 'fr' ? 'Aucun résultat' : 'No results'}</div>`;
+    ov.classList.toggle('has', !!q || true);
+  };
+  const runSel = () => { const h = list[sel]; if (h) { close(); h.run(); } };
+  const close = () => { ov.hidden = true; input.value = ''; };
+  input.oninput = () => { sel = 0; render(); };
+  input.onkeydown = (e) => {
+    if (e.key === 'ArrowDown') { sel = Math.min(list.length - 1, sel + 1); render(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { sel = Math.max(0, sel - 1); render(); e.preventDefault(); }
+    else if (e.key === 'Enter') runSel();
+    else if (e.key === 'Escape') close();
+  };
+  res.onclick = (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('.sp-hit'); if (b) { sel = Number(b.dataset.i); runSel(); } };
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  render();
+  setTimeout(() => input.focus(), 10);
+  if (!reduce) animate($('.sp-box', ov), { opacity: [0, 1], transform: ['scale(0.96) translateY(-8px)', 'scale(1) translateY(0)'] }, { duration: 0.25, ease });
+}
+
+/* ---------------- control center ---------------- */
+function buildControlCenter() {
+  const fr = lang === 'fr';
+  const cc = $('#cc'); const btn = $('#mb-cc'); if (!cc || !btn) return;
+  cc.innerHTML = `
+    <div class="cc-grid">
+      <div class="cc-tile cc-wide">
+        <button class="cc-row" data-cc="theme"><span class="cc-dot">${g.sparkles}</span><span><b>${fr ? 'Apparence' : 'Appearance'}</b><small data-cc-label="theme"></small></span></button>
+        <button class="cc-row" data-cc="lang"><span class="cc-dot">${g.globe}</span><span><b>${fr ? 'Langue' : 'Language'}</b><small>${fr ? 'Français' : 'English'}</small></span></button>
+        <button class="cc-row" data-cc="dnd"><span class="cc-dot">${g.clock}</span><span><b>${fr ? 'Concentration' : 'Focus'}</b><small data-cc-label="dnd"></small></span></button>
+      </div>
+      <button class="cc-tile cc-sq" data-cc="mission">${g.layoutGrid}<span>Mission Control</span></button>
+      <button class="cc-tile cc-sq" data-cc="spot">${g.search}<span>Spotlight</span></button>
+      <div class="cc-tile cc-full"><b>${fr ? 'Luminosité' : 'Display'}</b><input type="range" min="40" max="100" value="100" data-cc="bright" aria-label="Brightness" /></div>
+      <div class="cc-tile cc-full"><b>${fr ? 'Fond d’écran' : 'Wallpaper'}</b><div class="cc-walls">${WALLS.map((w) => `<button data-cc-wall="${w.id}" style="background-image:url(/img/walls/${w.id}-thumb.jpg)" aria-label="${w[lang]}"></button>`).join('')}</div></div>
+    </div>`;
+  const labels = () => {
+    const t = cc.querySelector('[data-cc-label="theme"]'); if (t) t.textContent = document.documentElement.dataset.theme === 'light' ? (fr ? 'Clair' : 'Light') : (fr ? 'Sombre' : 'Dark');
+    const d = cc.querySelector('[data-cc-label="dnd"]'); if (d) d.textContent = dnd ? (fr ? 'Ne pas déranger' : 'Do Not Disturb') : (fr ? 'Désactivé' : 'Off');
+    cc.querySelector('[data-cc="dnd"]')?.classList.toggle('on', dnd);
+    cc.querySelector('[data-cc="theme"]')?.classList.toggle('on', document.documentElement.dataset.theme !== 'light');
+  };
+  const toggle = (open?: boolean) => {
+    const o = open ?? cc.hidden; cc.hidden = !o; btn.setAttribute('aria-expanded', String(o));
+    if (o) { $('#notifs').innerHTML = ''; labels(); if (!reduce) animate(cc, { opacity: [0, 1], transform: ['translateY(-6px) scale(0.98)', 'translateY(0px) scale(1)'] }, { duration: 0.22, ease }); }
+  };
+  btn.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
+  document.addEventListener('click', (e) => { if (!cc.hidden && !(e.target as HTMLElement).closest('#cc')) toggle(false); });
+  cc.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-cc], [data-cc-wall]'); if (!b) return;
+    if (b.dataset.ccWall) { setWall(b.dataset.ccWall); return; }
+    const k = b.dataset.cc;
+    if (k === 'theme') { toggleTheme(); setTimeout(labels, 50); }
+    if (k === 'lang') location.href = lang === 'fr' ? '/en/' : '/';
+    if (k === 'dnd') { dnd = !dnd; labels(); }
+    if (k === 'mission') { toggle(false); mission(true); }
+    if (k === 'spot') { toggle(false); openSpotlight(); }
+  });
+  cc.querySelector<HTMLInputElement>('[data-cc="bright"]')!.addEventListener('input', (e) => {
+    document.documentElement.style.setProperty('--dim', String(1 - Number((e.target as HTMLInputElement).value) / 100));
+  });
+}
+let dnd = false;
+
+/* ---------------- notifications ---------------- */
+function notify(title: string, body: string, appId: AppId = 'about', onClick?: () => void) {
+  if (dnd) return;
+  const stack = $('#notifs'); if (!stack) return;
+  const n = h(`<button class="notif"><span class="n-ic">${appIcon(appId)}</span><span class="n-t"><b>${esc(title)}</b><span>${esc(body)}</span></span><small>${lang === 'fr' ? 'maintenant' : 'now'}</small></button>`);
+  stack.appendChild(n);
+  if (!reduce) animate(n, { opacity: [0, 1], transform: ['translateX(40px) scale(0.96)', 'translateX(0px) scale(1)'] }, { type: 'spring', stiffness: 260, damping: 22 });
+  const kill = () => { if (!n.isConnected) return; reduce ? n.remove() : animate(n, { opacity: 0, transform: 'translateX(40px)' }, { duration: 0.25 }).then(() => n.remove()); };
+  n.addEventListener('click', () => { onClick?.(); kill(); });
+  setTimeout(kill, 7000);
+}
+
+/* ---------------- mission control ---------------- */
+let missionOn = false;
+function mission(on: boolean) {
+  const open = [...wins.values()].filter((w) => !w.hidden);
+  if (on === missionOn) return;
+  missionOn = on;
+  document.body.classList.toggle('mission', on);
+  if (!on) { open.forEach((w) => { w.style.transition = reduce ? '' : 'transform .45s cubic-bezier(.22,1,.36,1)'; w.style.transform = ''; setTimeout(() => (w.style.transition = ''), 500); }); return; }
+  if (!open.length) { missionOn = false; document.body.classList.remove('mission'); toast(lang === 'fr' ? 'Aucune fenêtre ouverte' : 'No open windows'); return; }
+  const W = desktop.clientWidth, H = desktop.clientHeight - 140;
+  const cols = Math.ceil(Math.sqrt(open.length)), rows = Math.ceil(open.length / cols);
+  const cw = W / cols, ch = H / rows;
+  open.forEach((w, i) => {
+    const c = i % cols, r = Math.floor(i / cols);
+    const s = Math.min((cw - 60) / w.offsetWidth, (ch - 60) / w.offsetHeight, 0.85);
+    const tx = c * cw + cw / 2 - (w.offsetLeft + w.offsetWidth / 2);
+    const ty = 60 + r * ch + ch / 2 - (w.offsetTop + w.offsetHeight / 2);
+    w.style.transition = reduce ? '' : 'transform .5s cubic-bezier(.22,1,.36,1)';
+    w.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
+    w.dataset.title && w.setAttribute('data-mc', w.dataset.title);
+  });
+}
+function wireMission() {
+  desktop.addEventListener('click', (e) => {
+    if (!missionOn) return;
+    const w = (e.target as HTMLElement).closest<HTMLElement>('.win');
+    e.stopPropagation(); e.preventDefault();
+    mission(false);
+    if (w) focus(w);
+  }, true);
+}
+
+/* ---------------- context menu ---------------- */
+function wireContextMenu() {
+  const fr = lang === 'fr';
+  const menu = $('#ctx'); if (!menu) return;
+  menu.innerHTML = `
+    <button data-act="terminal">${fr ? 'Nouvelle fenêtre Terminal' : 'New Terminal Window'}</button>
+    <button data-act="spot">${fr ? 'Rechercher…' : 'Search…'} <kbd>⌘K</kbd></button>
+    <button data-act="mission">Mission Control <kbd>F3</kbd></button><hr>
+    <button data-act="widgets">${fr ? 'Afficher / masquer les widgets' : 'Show / Hide Widgets'}</button>
+    <button data-act="wall">${fr ? 'Changer le fond d’écran…' : 'Change Wallpaper…'}</button>
+    <button data-act="theme">${fr ? 'Basculer clair / sombre' : 'Toggle Light / Dark'}</button>`;
+  desktop.addEventListener('contextmenu', (e) => {
+    if ((e.target as HTMLElement).closest('.win, .wg, .d-icon')) return;
+    e.preventDefault();
+    menu.hidden = false;
+    const x = Math.min(e.clientX, innerWidth - 250), y = Math.min(e.clientY, innerHeight - 230);
+    menu.style.left = `${x}px`; menu.style.top = `${y}px`;
+  });
+  document.addEventListener('click', () => (menu.hidden = true));
+  menu.addEventListener('click', (e) => {
+    const a = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
+    if (a === 'terminal') openApp('terminal');
+    if (a === 'spot') openSpotlight();
+    if (a === 'mission') setTimeout(() => mission(true), 10);
+    if (a === 'widgets') document.body.classList.toggle('no-widgets');
+    if (a === 'wall') openApp('settings');
+    if (a === 'theme') toggleTheme();
+  });
+}
+
+/* ---------------- keyboard ---------------- */
+function wireKeys() {
+  document.addEventListener('keydown', (e) => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && (e.key.toLowerCase() === 'k' || e.key === ' ')) { e.preventDefault(); openSpotlight(); }
+    else if (e.key === 'F3' || (e.ctrlKey && e.key === 'ArrowUp')) { e.preventDefault(); mission(!missionOn); }
+    else if (e.key === 'Escape' && missionOn) mission(false);
+    else if (mod && e.shiftKey && e.key.toLowerCase() === 'l') { e.preventDefault(); toggleTheme(); }
+  });
+  $('#mb-search')?.addEventListener('click', (e) => { e.stopPropagation(); openSpotlight(); });
+}
+
+
 /* ---------------- boot ---------------- */
 function boot() {
   buildMenubar();
   buildDock();
   buildDesktopIcons();
+  buildControlCenter();
+  wireContextMenu();
+  wireKeys();
+  wireMission();
   const start = () => {
     const b = $('#boot'); b.classList.add('done'); setTimeout(() => b.remove(), 700);
     if (isMobile()) return;
-    openApp('about', { x: Math.max(24, desktop.clientWidth * 0.07), y: 64 });
-    setTimeout(() => openApp('terminal', { x: Math.min(desktop.clientWidth - 760, Math.max(60, desktop.clientWidth * 0.46)), y: Math.max(120, Math.min(desktop.clientHeight - 500, desktop.clientHeight * 0.36)) }), reduce ? 0 : 350);
+    buildWidgets();
+    setTimeout(() => openApp('terminal', { x: Math.min(desktop.clientWidth - 760, Math.max(420, desktop.clientWidth * 0.42)), y: Math.max(90, desktop.clientHeight * 0.14) }), reduce ? 0 : 500);
+    setTimeout(() => notify(lang === 'fr' ? 'Bienvenue sur imrane-os 👋' : 'Welcome to imrane-os 👋', lang === 'fr' ? 'Appuyez sur ⌘K pour tout rechercher, F3 pour Mission Control, clic droit sur le bureau pour plus.' : 'Press ⌘K to search everything, F3 for Mission Control, right-click the desktop for more.', 'about', openSpotlight), reduce ? 0 : 1600);
   };
   let seen = false;
   try { seen = sessionStorage.getItem('booted') === '1'; sessionStorage.setItem('booted', '1'); } catch {}
