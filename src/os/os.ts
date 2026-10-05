@@ -19,7 +19,7 @@ const desktop = $('#desktop');
 const photo = '/img/imrane.webp';
 
 /* ---------------- apps ---------------- */
-type AppId = 'about' | 'finder' | 'terminal' | 'notes' | 'skills' | 'mail' | 'readme';
+type AppId = 'about' | 'finder' | 'terminal' | 'notes' | 'skills' | 'mail' | 'readme' | 'settings';
 interface AppDef { id: AppId; title: string; icon: string; w: number; h: number; render: (win: HTMLElement) => HTMLElement; chrome?: 'sidebar' }
 
 const appIcon = (id: AppId) => (id === 'about' ? `<img src="${photo}" alt="" />` : icon(id));
@@ -253,6 +253,32 @@ function renderReadme(): HTMLElement {
     <p>${lang === 'fr' ? 'Astuce : ouvrez le <code>Terminal</code> et tapez <code>help</code>, ou glissez les fenêtres où vous voulez.' : 'Tip: open the <code>Terminal</code> and type <code>help</code>, or drag the windows around.'}</p></div>`);
 }
 
+/* ---------------- wallpaper settings ---------------- */
+const WALLS = [
+  { id: 'silk', fr: 'Soie', en: 'Silk' },
+  { id: 'lake', fr: 'Lac', en: 'Lake' },
+  { id: 'glass', fr: 'Verre', en: 'Glass' },
+  { id: 'dunes', fr: 'Dunes', en: 'Dunes' },
+];
+function setWall(id: string) {
+  document.documentElement.dataset.wall = id;
+  try { localStorage.setItem('wall', id); } catch {}
+  document.querySelectorAll('.wp').forEach((b) => b.classList.toggle('on', (b as HTMLElement).dataset.wall === id));
+}
+function renderSettings(): HTMLElement {
+  const cur = document.documentElement.dataset.wall || 'silk';
+  const el = h(`<div class="settings"><h2>${lang === 'fr' ? 'Fond d’écran' : 'Wallpaper'}</h2>
+    <div class="wp-grid">${WALLS.map((w) => `<button class="wp ${w.id === cur ? 'on' : ''}" data-wall="${w.id}"><img src="/img/walls/${w.id}-thumb.jpg" alt="" /><span>${w[lang]}</span></button>`).join('')}</div>
+    <h2>${lang === 'fr' ? 'Apparence' : 'Appearance'}</h2>
+    <div class="seg"><button data-theme-set="light">${lang === 'fr' ? 'Clair' : 'Light'}</button><button data-theme-set="dark">${lang === 'fr' ? 'Sombre' : 'Dark'}</button></div></div>`);
+  el.addEventListener('click', (e) => {
+    const w = (e.target as HTMLElement).closest<HTMLElement>('[data-wall]'); if (w) setWall(w.dataset.wall!);
+    const th = (e.target as HTMLElement).closest<HTMLElement>('[data-theme-set]');
+    if (th && document.documentElement.dataset.theme !== th.dataset.themeSet) toggleTheme();
+  });
+  return el;
+}
+
 /* ---------------- terminal ---------------- */
 function renderTerminal(): HTMLElement {
   const el = h(`<div class="term" role="log" aria-live="polite"><div class="out"></div>
@@ -277,6 +303,7 @@ function renderTerminal(): HTMLElement {
     skills: () => print(stack.map((g, i) => `  <span class="hl">${D.stackGroups[i].padEnd(16)}</span>${g.map((x) => x[1]).join(', ')}`).join('\n')),
     contact: () => print(`  email     <a href="mailto:${site.email}">${site.email}</a>\n  linkedin  <a href="${site.linkedin}" target="_blank" rel="noopener">${site.linkedin.replace('https://www.', '')}</a>\n  github    <a href="${site.github}" target="_blank" rel="noopener">${site.github.replace('https://', '')}</a>`),
     theme: () => toggleTheme(),
+    wallpaper: (a) => { const w = WALLS.find((x) => x.id === a.trim()); if (w) { setWall(w.id); print('✔ ' + w[lang]); } else print(WALLS.map((x) => x.id).join('  ')); },
     lang: () => { location.href = lang === 'fr' ? '/en/' : '/'; },
     clear: () => { out.innerHTML = ''; },
     ls: () => print('about.txt  projects/  experience/  skills.json  contact.vcf  README.md'),
@@ -325,6 +352,7 @@ const apps: Record<AppId, AppDef> = {
   skills: { id: 'skills', title: L.apps.skills, icon: appIcon('skills'), w: 640, h: 520, render: renderSkills },
   mail: { id: 'mail', title: L.apps.mail, icon: appIcon('mail'), w: 560, h: 440, render: renderMail },
   readme: { id: 'readme', title: L.apps.readme, icon: appIcon('readme'), w: 560, h: 360, render: renderReadme },
+  settings: { id: 'settings', title: lang === 'fr' ? 'Réglages' : 'Settings', icon: appIcon('settings'), w: 600, h: 590, render: renderSettings },
 };
 
 /* ---------------- window manager ---------------- */
@@ -463,7 +491,7 @@ function wireWindow(win: HTMLElement, id: AppId) {
 }
 
 /* ---------------- dock ---------------- */
-const dockOrder: (AppId | '|')[] = ['about', 'finder', 'terminal', 'notes', 'skills', 'mail', '|', 'readme'];
+const dockOrder: (AppId | '|')[] = ['about', 'finder', 'terminal', 'notes', 'skills', 'mail', 'settings', '|', 'readme'];
 function buildDock() {
   const dock = $('#dock');
   dock.innerHTML = dockOrder.map((id) => id === '|' ? '<span class="dock-sep"></span>' :
@@ -512,7 +540,7 @@ function buildDesktopIcons() {
     if (it.proj) setTimeout(() => (w.querySelector('.fx') as any)?.show(it.proj), 30);
   });
   const home = $('#home-grid');
-  const homeApps: AppId[] = ['about', 'finder', 'terminal', 'notes', 'skills', 'mail', 'readme'];
+  const homeApps: AppId[] = ['about', 'finder', 'terminal', 'notes', 'skills', 'mail', 'settings', 'readme'];
   home.innerHTML = homeApps.map((id) => `<button class="home-app" data-app="${id}"><span class="ic">${appIcon(id)}</span>${id === 'terminal' ? L.apps.terminal : apps[id].title}</button>`).join('');
   home.addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('.home-app'); if (b) openApp(b.dataset.app as AppId); });
 }
@@ -542,7 +570,7 @@ function buildMenubar() {
   const menu = $('#brand-menu');
   const btn = $('#brand-btn');
   const items = L.brandMenu;
-  menu.innerHTML = `<button data-open="about">${items[0]}</button><hr>
+  menu.innerHTML = `<button data-open="about">${items[0]}</button><button data-open="settings">${lang === 'fr' ? 'Fond d’écran…' : 'Wallpaper…'}</button><hr>
     <button data-open="mail">${items[2]}</button>
     <a href="https://github.com/ADLI-Imrane/portfolio" target="_blank" rel="noopener">${items[3]} ↗</a>`;
   const close = () => { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); };

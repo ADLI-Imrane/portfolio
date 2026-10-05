@@ -34,6 +34,9 @@ const raw: Record<string, string> = {
     `<path d="M32 20h24l14 14v42a4 4 0 0 1-4 4H32a4 4 0 0 1-4-4V24a4 4 0 0 1 4-4z" fill="#fff"/>
      <path d="M56 20v14h14" fill="#e2e8f0"/>
      <text x="49" y="66" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="15" font-weight="800" fill="#475569">MD</text>`),
+  settings: glass('settings', '#c7ccd6', '#6b7280',
+    `<circle cx="50" cy="50" r="22" fill="none" stroke="#fff" stroke-width="7" stroke-dasharray="8 6.4"/>
+     <circle cx="50" cy="50" r="13" fill="none" stroke="#fff" stroke-width="5"/><circle cx="50" cy="50" r="4" fill="#fff"/>`),
   folder: `<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <defs><linearGradient id="fb__U__" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd0ff"/><stop offset="1" stop-color="#4b9bff"/></linearGradient>
     <linearGradient id="ff__U__" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfe7ff" stop-opacity=".95"/><stop offset="1" stop-color="#7ab8ff" stop-opacity=".9"/></linearGradient></defs>

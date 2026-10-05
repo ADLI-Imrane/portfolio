@@ -35,6 +35,8 @@ const other = lang === 'fr' ? '/en/' : '/';
         try { t = localStorage.getItem('theme'); } catch (e) {}
         if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
         document.documentElement.dataset.theme = t;
+        var w = null; try { w = localStorage.getItem('wall'); } catch (e) {}
+        document.documentElement.dataset.wall = w || 'silk';
       })();
     </script>
   </head>
