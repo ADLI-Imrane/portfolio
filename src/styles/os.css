@@ -568,3 +568,13 @@ img.osi { width: 100%; height: 100%; display: block; object-fit: contain; border
 :root[data-wall='aqua'] .menubar { color: #0d1726 !important; text-shadow: none; }
 :root[data-wall='aqua'] .wall-sig { color: rgba(13,23,38,0.9) !important; text-shadow: none; }
 :root[data-wall='aqua'] .d-icon span { color: #0d1726; text-shadow: 0 1px 2px rgba(255,255,255,0.8); }
+
+.mail-links { flex-wrap: wrap; align-items: center; }
+.mail-links a { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.mail-links a:hover { color: var(--win-text); }
+.mail-links .mi { width: 20px; height: 20px; display: inline-block; }
+.mail-links a.wa { color: #25d366; font-weight: 600; }
+.dock-link { text-decoration: none; color: inherit; }
+
+.home-app { text-decoration: none; color: inherit; }
+@media (max-width: 760px) { .dock-link, .dock-sep { display: none !important; } }

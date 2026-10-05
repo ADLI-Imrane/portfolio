@@ -5,6 +5,8 @@ export const site = {
   email: 'imrane.adli.pro@gmail.com',
   linkedin: 'https://www.linkedin.com/in/imrane-adli',
   github: 'https://github.com/ADLI-Imrane',
+  phone: '+212 6 27 28 04 07',
+  whatsapp: 'https://wa.me/212627280407',
 };
 
 const fr = {

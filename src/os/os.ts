@@ -85,6 +85,7 @@ function renderFinder(): HTMLElement {
       ${side('about', 'house', 'imrane', 'data-open="about"')}
       <a class="fs-item" href="${site.github}" target="_blank" rel="noopener">${g.globe}<span>GitHub</span></a>
       <a class="fs-item" href="${site.linkedin}" target="_blank" rel="noopener">${g.link}<span>LinkedIn</span></a>
+      <a class="fs-item" href="${site.whatsapp}" target="_blank" rel="noopener">${g.mail}<span>WhatsApp</span></a>
     </aside>
     <div class="fx-main">
       <div class="fx-toolbar" data-drag>
@@ -234,7 +235,7 @@ function renderMail(): HTMLElement {
     <div class="mail-field"><label>${L.mail.to}</label><input value="${site.email}" readonly /></div>
     <div class="mail-field"><label>${L.mail.subject}</label><input data-subject value="${esc(L.mail.subjectValue)}" /></div>
     <textarea data-body>${esc(L.mail.body)}</textarea>
-    <div class="mail-links"><a href="${site.linkedin}" target="_blank" rel="noopener">LinkedIn ↗</a><a href="${site.github}" target="_blank" rel="noopener">GitHub ↗</a></div>
+    <div class="mail-links"><a class="wa" href="${site.whatsapp}" target="_blank" rel="noopener"><span class="mi">${icon('whatsapp')}</span>WhatsApp · ${site.phone}</a><a href="${site.linkedin}" target="_blank" rel="noopener"><span class="mi">${icon('linkedin')}</span>LinkedIn</a><a href="${site.github}" target="_blank" rel="noopener"><span class="mi">${icon('github')}</span>GitHub</a></div>
   </div>`);
   el.querySelector('[data-send]')!.addEventListener('click', () => {
     const s = encodeURIComponent(($('[data-subject]', el) as HTMLInputElement).value);
@@ -301,7 +302,8 @@ function renderTerminal(): HTMLElement {
     },
     experience: () => print(D.experience.items.map((e) => `  <span class="hl">${esc(e.period.padEnd(22))}</span>${esc(e.role)} <span class="dim">@ ${esc(e.org)}</span>`).join('\n')),
     skills: () => print(stack.map((g, i) => `  <span class="hl">${D.stackGroups[i].padEnd(16)}</span>${g.map((x) => x[1]).join(', ')}`).join('\n')),
-    contact: () => print(`  email     <a href="mailto:${site.email}">${site.email}</a>\n  linkedin  <a href="${site.linkedin}" target="_blank" rel="noopener">${site.linkedin.replace('https://www.', '')}</a>\n  github    <a href="${site.github}" target="_blank" rel="noopener">${site.github.replace('https://', '')}</a>`),
+    contact: () => print(`  email     <a href="mailto:${site.email}">${site.email}</a>\n  linkedin  <a href="${site.linkedin}" target="_blank" rel="noopener">${site.linkedin.replace('https://www.', '')}</a>\n  github    <a href="${site.github}" target="_blank" rel="noopener">${site.github.replace('https://', '')}</a>\n  whatsapp  <a href="${site.whatsapp}" target="_blank" rel="noopener">${site.phone}</a>`),
+    whatsapp: () => { print(`${L.terminal.opening}WhatsApp…`); window.open(site.whatsapp, '_blank', 'noopener'); },
     theme: () => toggleTheme(),
     wallpaper: (a) => { const w = WALLS.find((x) => x.id === a.trim()); if (w) { setWall(w.id); print('✔ ' + w[lang]); } else print(WALLS.map((x) => x.id).join('  ')); },
     lang: () => { location.href = lang === 'fr' ? '/en/' : '/'; },
@@ -491,13 +493,19 @@ function wireWindow(win: HTMLElement, id: AppId) {
 }
 
 /* ---------------- dock ---------------- */
-const dockOrder: (AppId | '|')[] = ['about', 'finder', 'terminal', 'notes', 'skills', 'mail', 'settings', '|', 'readme'];
+const dockOrder: (AppId | '|' | `link:${string}`)[] = ['about', 'finder', 'terminal', 'notes', 'skills', 'mail', 'settings', '|', 'link:github', 'link:linkedin', 'link:whatsapp', '|', 'readme'];
+const dockLinks: Record<string, { href: string; label: string }> = {
+  github: { href: site.github, label: 'GitHub' },
+  linkedin: { href: site.linkedin, label: 'LinkedIn' },
+  whatsapp: { href: site.whatsapp, label: 'WhatsApp' },
+};
 function buildDock() {
   const dock = $('#dock');
   dock.innerHTML = dockOrder.map((id) => id === '|' ? '<span class="dock-sep"></span>' :
+    id.startsWith('link:') ? (() => { const k = id.slice(5), l = dockLinks[k]; return `<a class="dock-item dock-link" href="${l.href}" target="_blank" rel="noopener" aria-label="${l.label}"><span class="ic">${icon(k)}</span><span class="tip">${l.label}</span></a>`; })() :
     `<button class="dock-item" data-app="${id}" aria-label="${esc(apps[id].title === 'imrane — zsh — 80×24' ? L.apps.terminal : apps[id].title)}"><span class="ic">${appIcon(id)}</span><span class="tip">${id === 'terminal' ? L.apps.terminal : apps[id].title}</span><span class="dot"></span></button>`).join('');
   dock.addEventListener('click', (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLElement>('.dock-item'); if (!b) return;
+    const b = (e.target as HTMLElement).closest<HTMLElement>('.dock-item'); if (!b || !b.dataset.app) return;
     const id = b.dataset.app as AppId;
     if (!wins.has(id) && !reduce) { b.classList.add('bounce'); setTimeout(() => b.classList.remove('bounce'), 1200); }
     const w = wins.get(id);
@@ -560,7 +568,8 @@ function buildDesktopIcons() {
   });
   const home = $('#home-grid');
   const homeApps: AppId[] = ['about', 'finder', 'terminal', 'notes', 'skills', 'mail', 'settings', 'readme'];
-  home.innerHTML = homeApps.map((id) => `<button class="home-app" data-app="${id}"><span class="ic">${appIcon(id)}</span>${id === 'terminal' ? L.apps.terminal : apps[id].title}</button>`).join('');
+  home.innerHTML = homeApps.map((id) => `<button class="home-app" data-app="${id}"><span class="ic">${appIcon(id)}</span>${id === 'terminal' ? L.apps.terminal : apps[id].title}</button>`).join('')
+    + Object.entries(dockLinks).map(([k, l]) => `<a class="home-app" href="${l.href}" target="_blank" rel="noopener"><span class="ic">${icon(k)}</span>${l.label}</a>`).join('');
   home.addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('.home-app'); if (b) openApp(b.dataset.app as AppId); });
 }
 
@@ -675,6 +684,9 @@ function spotlightIndex(): Hit[] {
   const cmdHits: Hit[] = [
     { kind: fr ? 'Actions' : 'Actions', title: fr ? 'Basculer clair / sombre' : 'Toggle light / dark', sub: '⌘ ⇧ L', icon: icon('settings'), run: () => toggleTheme() },
     { kind: fr ? 'Actions' : 'Actions', title: fr ? 'Copier mon e-mail' : 'Copy my email', sub: site.email, icon: icon('mail'), run: async () => { try { await navigator.clipboard.writeText(site.email); } catch {} toast(L.mail.copied); } },
+    { kind: 'Contact', title: 'WhatsApp', sub: site.phone, icon: icon('whatsapp'), run: () => window.open(site.whatsapp, '_blank', 'noopener') },
+    { kind: 'Contact', title: 'LinkedIn', sub: 'linkedin.com/in/imrane-adli', icon: icon('linkedin'), run: () => window.open(site.linkedin, '_blank', 'noopener') },
+    { kind: 'Contact', title: 'GitHub', sub: 'github.com/ADLI-Imrane', icon: icon('github'), run: () => window.open(site.github, '_blank', 'noopener') },
     { kind: fr ? 'Actions' : 'Actions', title: 'Mission Control', sub: 'F3 · Ctrl ↑', icon: icon('finder'), run: () => mission(true) },
     { kind: fr ? 'Actions' : 'Actions', title: fr ? 'Passer en anglais' : 'Switch to French', sub: lang === 'fr' ? 'English' : 'Français', icon: icon('readme'), run: () => { location.href = lang === 'fr' ? '/en/' : '/'; } },
     ...WALLS.map((w) => ({ kind: fr ? 'Fonds d’écran' : 'Wallpapers', title: w[lang], sub: fr ? 'Fond d’écran' : 'Wallpaper', icon: `<img src="/img/walls/${w.id}-thumb.jpg" alt="" />`, run: () => setWall(w.id) })),
