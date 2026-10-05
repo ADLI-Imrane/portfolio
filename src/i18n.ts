@@ -65,7 +65,7 @@ const fr = {
       tag: 'Projet personnel · 2025–2026',
       desc:
         'Plateforme de liens courts et de QR codes personnalisés, disponible sur le web, sur mobile et en extension Chrome, avec paiements intégrés.',
-      points: ['Monorepo pnpm avec paquets partagés', 'Paiements Stripe, données et auth Supabase', 'En ligne sur wrx.link'],
+      points: ['Monorepo pnpm avec paquets partagés', 'Paiements Stripe, données et auth Supabase', 'Web, API, extension navigateur et app mobile'],
       stack: ['React', 'NestJS', 'TypeScript', 'Supabase', 'Stripe'],
     },
     {
@@ -181,7 +181,7 @@ const en: typeof fr = {
       name: 'WRX Generator v2',
       tag: 'Personal project · 2025–2026',
       desc: 'Short-link and custom QR-code platform available on the web, on mobile and as a Chrome extension, with built-in payments.',
-      points: ['pnpm monorepo with shared packages', 'Stripe payments, Supabase data and auth', 'Live at wrx.link'],
+      points: ['pnpm monorepo with shared packages', 'Stripe payments, Supabase data and auth', 'Web app, API, browser extension and mobile app'],
       stack: ['React', 'NestJS', 'TypeScript', 'Supabase', 'Stripe'],
     },
     {

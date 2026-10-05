@@ -26,7 +26,7 @@ const appIcon = (id: AppId) => (id === 'about' ? `<img src="${photo}" alt="" />`
 
 const projectMeta: Record<string, { img?: string; live?: string; code?: string; lock?: 'private' | 'company' }> = {
   tunneleads: { img: '/img/tunneleads-demo.webp', lock: 'private' },
-  wrx: { live: 'https://wrx.link', code: 'https://github.com/ADLI-Imrane/wrx-generator-v2' },
+  wrx: { code: 'https://github.com/ADLI-Imrane/wrx-generator-v2' },
   hris: { lock: 'company' },
   workout: { lock: 'private' },
 };
