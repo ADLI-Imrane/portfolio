@@ -583,3 +583,4 @@ img.osi { width: 100%; height: 100%; display: block; object-fit: contain; border
 .widgets { transition: opacity .35s, transform var(--spring-ms, .5s) var(--spring, cubic-bezier(.32,.72,0,1)); }
 .wg { transition: transform var(--spring-ms, .5s) var(--spring, cubic-bezier(.32,.72,0,1)); }
 .win.dragging { will-change: left, top; }
+.win[hidden] { display: none !important; }
