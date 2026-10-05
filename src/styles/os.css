@@ -13,7 +13,7 @@
   --menubar: rgba(18, 20, 26, 0.45);
   --accent: #3b82f6;
   --shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.65), 0 0 0 0.5px rgba(0, 0, 0, 0.6);
-  --wall: url('/img/walls/silk.jpg') center / cover no-repeat, #1a1550;
+  --wall: url('/img/walls/tahoe.jpg') center / cover no-repeat, #0a1a4a;
   --glass: rgba(34, 44, 92, 0.42);
   --glass-strong: rgba(22, 26, 48, 0.8);
   --tint: rgba(70, 110, 255, 0.10);
@@ -380,9 +380,10 @@ a { color: inherit; }
   .fx-detail { grid-template-columns: 1fr; }
 }
 
-:root[data-wall='lake'] { --wall: url('/img/walls/lake.jpg') center / cover no-repeat, #1a2340; }
-:root[data-wall='glass'] { --wall: url('/img/walls/glass.jpg') center / cover no-repeat, #120c3a; }
-:root[data-wall='dunes'] { --wall: url('/img/walls/dunes.jpg') center / cover no-repeat, #6a3a1a; }
+:root[data-wall='silk'] { --wall: url('/img/walls/silk.jpg') center / cover no-repeat, #1a1550; }
+:root[data-wall='tahoe'] { --wall: url('/img/walls/tahoe.jpg') center / cover no-repeat, #0a1a4a; }
+:root[data-wall='dusk'] { --wall: url('/img/walls/dusk.jpg') center / cover no-repeat, #0a1230; }
+:root[data-wall='aqua'] { --wall: url('/img/walls/aqua.jpg') center / cover no-repeat, #cfe6f5; }
 .desktop { transition: background 0.5s ease; }
 .settings { padding: 18px 22px; }
 .settings h2 { font-size: 13px; color: var(--win-muted); font-weight: 600; margin: 4px 0 12px; }
@@ -543,3 +544,27 @@ body.mission .widgets, body.mission .d-icons { opacity: .25; }
 /* menubar + lock-screen clock sit directly on the (vivid) wallpaper: keep them white in both themes */
 .menubar, :root[data-theme='light'] .menubar { color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.3); }
 :root[data-theme='light'] .wall-sig { color: rgba(255,255,255,0.95); text-shadow: 0 2px 30px rgba(0,0,0,0.25); }
+
+/* MacTahoe icons are complete squircles: no extra frame */
+img.osi { width: 100%; height: 100%; display: block; object-fit: contain; border-radius: 0 !important; padding: 0 !important; box-shadow: none !important; }
+.fx-item .th img.osi { height: auto; aspect-ratio: 1; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25)); }
+.d-icon .ic img.osi { filter: none; }
+.d-icon .ic { filter: drop-shadow(0 6px 12px rgba(0,0,0,0.3)); }
+
+/* ===== darker, more opaque glass for legibility ===== */
+:root:not([data-theme='light']) {
+  --glass: rgba(14, 17, 30, 0.80);
+  --glass-strong: rgba(12, 14, 24, 0.90);
+  --tint: rgba(40, 60, 140, 0.10);
+  --lg-bg: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03) 45%), rgba(14, 17, 32, 0.62);
+}
+:root:not([data-theme='light']) .win { background-color: rgba(14, 17, 30, 0.80); }
+:root:not([data-theme='light']) .dock { background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04)), rgba(16, 19, 34, 0.55); }
+.cc, .sp-box, .notif, .ctx { background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03)), rgba(14,17,32,0.84); }
+:root[data-theme='light'] { --glass: rgba(240, 243, 250, 0.84); }
+:root:not([data-theme='light']) .fx-side { background: linear-gradient(170deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)), rgba(28, 32, 50, 0.92); }
+:root:not([data-theme='light']) .win.chrome-sidebar { background-color: rgba(12, 14, 26, 0.88); }
+/* light wallpaper: dark menubar text */
+:root[data-wall='aqua'] .menubar { color: #0d1726 !important; text-shadow: none; }
+:root[data-wall='aqua'] .wall-sig { color: rgba(13,23,38,0.9) !important; text-shadow: none; }
+:root[data-wall='aqua'] .d-icon span { color: #0d1726; text-shadow: 0 1px 2px rgba(255,255,255,0.8); }

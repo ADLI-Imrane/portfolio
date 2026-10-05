@@ -255,18 +255,18 @@ function renderReadme(): HTMLElement {
 
 /* ---------------- wallpaper settings ---------------- */
 const WALLS = [
+  { id: 'tahoe', fr: 'Tahoe', en: 'Tahoe' },
+  { id: 'dusk', fr: 'Crépuscule', en: 'Dusk' },
+  { id: 'aqua', fr: 'Aqua', en: 'Aqua' },
   { id: 'silk', fr: 'Soie', en: 'Silk' },
-  { id: 'lake', fr: 'Lac', en: 'Lake' },
-  { id: 'glass', fr: 'Verre', en: 'Glass' },
-  { id: 'dunes', fr: 'Dunes', en: 'Dunes' },
 ];
 function setWall(id: string) {
   document.documentElement.dataset.wall = id;
-  try { localStorage.setItem('wall', id); } catch {}
+  try { localStorage.setItem('wallpaper', id); } catch {}
   document.querySelectorAll('.wp').forEach((b) => b.classList.toggle('on', (b as HTMLElement).dataset.wall === id));
 }
 function renderSettings(): HTMLElement {
-  const cur = document.documentElement.dataset.wall || 'silk';
+  const cur = document.documentElement.dataset.wall || 'tahoe';
   const el = h(`<div class="settings"><h2>${lang === 'fr' ? 'Fond d’écran' : 'Wallpaper'}</h2>
     <div class="wp-grid">${WALLS.map((w) => `<button class="wp ${w.id === cur ? 'on' : ''}" data-wall="${w.id}"><img src="/img/walls/${w.id}-thumb.jpg" alt="" /><span>${w[lang]}</span></button>`).join('')}</div>
     <h2>${lang === 'fr' ? 'Apparence' : 'Appearance'}</h2>
